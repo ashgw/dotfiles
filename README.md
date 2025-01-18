@@ -33,7 +33,7 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
   </div>
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="./images/new/btop.png" alt="Image 1" style="width: 100%;">
+    <img src="./images/btop-dark.png" alt="Image 1" style="width: 100%;">
   </div>
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
