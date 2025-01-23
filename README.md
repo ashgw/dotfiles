@@ -24,7 +24,7 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
 ##### New
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="./images/colorful-00.png" alt="Image 1" style="width: 100%;">
+    <img src="./images/blur0.png" alt="Image 1" style="width: 100%;">
   </div>
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
