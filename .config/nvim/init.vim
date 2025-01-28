@@ -1,4 +1,3 @@
-
 let mapleader =","
 
 " Auto plugin setup
@@ -79,13 +78,17 @@ nnoremap <silent><leader>1 :source ~/.config/nvim/init.vim \| :PlugInstall<CR>
 " more useful pluuugs 🌿
 let g:kite_supported_languages = ['python', 'javascript']
 
+
+" Themes
+Plug 'folke/tokyonight.nvim'
+Plug 'morhetz/gruvbox'
+"
 Plug 'rust-lang/rust.vim'
 Plug 'cespare/vim-toml', {'branch': 'main'}
 Plug 'stephpy/vim-yaml'
 Plug 'rust-lang/rust.vim'
 Plug 'plasticboy/vim-markdown'
 
-Plug 'morhetz/gruvbox'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
 Plug 'ryanoasis/vim-devicons'
@@ -133,8 +136,8 @@ Plug 'lewis6991/gitsigns.nvim'
 Plug 'dinhhuy258/git.nvim'
 Plug 'folke/zen-mode.nvim'
 Plug 'iamcco/markdown-preview.nvim'
-
-" colorscheme gruvbox
+Plug 'kyazdani42/nvim-web-devicons' " For fancy icons
+Plug 'nvim-lualine/lualine.nvim'
 
 let g:bargreybars_auto=0
 let g:airline_solorized_bg='dark'
@@ -144,6 +147,9 @@ let g:airline#extension#tabline#left_sep=' '
 let g:airline#extension#tabline#left_alt_sep='|'
 let g:airline#extension#tabline#formatter='unique_tail'
 let NERDTreeQuitOnOpen=1
+
+" for all themes @see https://github.com/vim-airline/vim-airline/commit/d7fd8ca649e441b3865551a325b10504cdf0711b
+let g:airline_theme = 'onedark'
 
 let g:WebDevIconsUnicodeDecorateFolderNodes = 1
 let g:WebDevIconsUnicodeDecorateFolderNodeDefaultSymbol = '#'
@@ -236,7 +242,9 @@ nnoremap <leader>h :call ToggleHiddenAll()<CR>
 
 " default theme for now
 " colorscheme catppuccin-mocha
-colorscheme dracula
+" colorscheme dracula
+"
+colorscheme catppuccin-mocha
 "TAB compeletion
 inoremap <silent><expr> <TAB> pumvisible() ? "\<C-n>" : "\<TAB>"
 inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
