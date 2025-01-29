@@ -58,6 +58,10 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
     <img src="./images/black-1.png" alt="Image 1" style="width: 100%;">
   </div>
 
+ <div style="flex: 1; min-width: 200px; margin: 5px;">
+    <img src="./images/vscode-dark.png" alt="Image 1" style="width: 100%;">
+  </div>
+
 
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
@@ -72,10 +76,6 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
     <img src="./images/btop-dark.png" alt="Image 1" style="width: 100%;">
-  </div>
-
- <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="./images/new/red-go-brrrr.png" alt="Image 1" style="width: 100%;">
   </div>
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
