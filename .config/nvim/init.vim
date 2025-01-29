@@ -105,6 +105,8 @@ Plug 'PhilRunninger/nerdtree-visual-selection'
 Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
 Plug 'scrooloose/nerdtree', { 'on':  'NERDTreeToggle' }
 Plug 'tpope/vim-fireplace', { 'for': 'clojure' }
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'junegunn/fzf.vim'
 
 " Others
 Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
@@ -252,7 +254,7 @@ inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
 " Use Enter to accept the suggestion
 inoremap <expr> <CR> pumvisible() ? coc#pum#confirm() : "\<CR>"
 
-
+cnoreabbrev ff FZF!
 
 " Transparent BG
 hi normal guibg=NONE
