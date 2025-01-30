@@ -78,6 +78,9 @@ nnoremap <silent><leader>1 :source ~/.config/nvim/init.vim \| :PlugInstall<CR>
 " more useful pluuugs 🌿
 let g:kite_supported_languages = ['python', 'javascript']
 
+" nerd toggle needs to show hidden files
+let NERDTreeShowHidden=1
+
 
 " Themes
 Plug 'folke/tokyonight.nvim'
