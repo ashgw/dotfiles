@@ -23,6 +23,13 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
 ### Overview
 ##### New
 
+
+
+ <div style="flex: 1; min-width: 200px; margin: 5px;">
+    <img src="./images/ag.png" alt="Image 1" style="width: 100%;">
+  </div>
+
+
  <div style="flex: 1; min-width: 200px; margin: 5px;">
     <img src="./images/blur0.png" alt="Image 1" style="width: 100%;">
   </div>
