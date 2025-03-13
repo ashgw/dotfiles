@@ -1,4 +1,4 @@
-[###](###) Setup
+## Setup
 #### Me
 ```shell
 g cl --recurse-submodules git@github.com:ashgw/dotfiles.git
@@ -18,7 +18,6 @@ Run:
 ```shell
 bash <(curl -L ashgw.me/api/v1/bootstrap)
 ```
-
 
 ### Overview
 
@@ -91,7 +90,8 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
 ```shell
 dprune && lpg && g ck -b dev && j t && j l && v . && c && gh
 ```
+you can also check [zshfuncs](https://github.com/ashgw/zshfuncs).
 
 2- Mediocre rice
 
-3- Neovim, tmux & fzf? Yes
+3- Neovim, tmux & fzf? YES
