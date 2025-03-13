@@ -2,6 +2,7 @@
     email = ashrefgw@proton.me
     name = ashgw
     signingkey =  79821E0224D34EC4969FF6A8E5168EE090AE80D0
+
 [gpg]
     program = gpg
 
@@ -11,12 +12,34 @@
 [init]
     defaultBranch = main
 
+[merge]
+    tool = nvimdiff
+
+[mergetool "nvimdiff"]
+    cmd = nvim -d "$LOCAL" "$REMOTE" "$MERGED" -c "wincmd J"
+    keepBackup = false
+    prompt = false
+
+[diff]
+    tool = nvimdiff
+
+[difftool "nvimdiff"]
+    cmd = nvim -d "$LOCAL" "$REMOTE"
+    prompt = false
+
 [core]
     editor = nvim
 
+[pull]
+    rebase = true
+
+[push]
+    default = current
+
 [alias]
-    rf='reflog'
-    b='git branch'
+    ss="reset --soft HEAD~2" # ss is just easier to type
+    mt='mergetool'
+    b='branch'
     a = add .
     p  = push origin
     pu  = pull origin
@@ -39,6 +62,3 @@
     ck = checkout
     s = status
     fa='add $(git ls-files --modified | fzf -m --preview "git diff --color -- {1}")'
-
-[push]
-	default = current

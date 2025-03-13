@@ -1,23 +1,47 @@
 [user]
     email = ashrefgw@proton.me
     name = ashgw
-	signingkey = /home/ashgw/.ssh/github.pub
-
-[core]
-    editor = nvim
-
-[commit]
-	gpgsign = true
+    # this signs with SSH, to sign with GPG, @see {@link http://github.com/ashgw/dotfiles/blob/main/other/.gitconfig/.gitconfig-gpg }
+    signingkey = /home/ashgw/.ssh/github.pub
 
 [gpg]
-	format = ssh
+    program = gpg
+
+[commit]
+    gpgsign = true
 
 [init]
     defaultBranch = main
 
+[merge]
+    tool = nvimdiff
+
+[mergetool "nvimdiff"]
+    cmd = nvim -d "$LOCAL" "$REMOTE" "$MERGED" -c "wincmd J"
+    keepBackup = false
+    prompt = false
+
+[diff]
+    tool = nvimdiff
+
+[difftool "nvimdiff"]
+    cmd = nvim -d "$LOCAL" "$REMOTE"
+    prompt = false
+
+[core]
+    editor = nvim
+
+[pull]
+    rebase = true
+
+[push]
+    default = current
+
 [alias]
+    ss="reset --soft HEAD~2" # ss is just easier to type
+    mt='mergetool'
     rf='reflog'
-    b='git branch'
+    b='branch'
     a = add .
     p  = push origin
     pu  = pull origin
@@ -40,6 +64,3 @@
     ck = checkout
     s = status
     fa='add $(git ls-files --modified | fzf -m --preview "git diff --color -- {1}")'
-
-[push]
-	default = current
