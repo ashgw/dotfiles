@@ -5,7 +5,7 @@ g cl --recurse-submodules git@github.com:ashgw/dotfiles.git
 ```
 #### Not me
 
-This will work on any POSIX machine, to:
+This will work on any POSIX machine, to **automatically**:
 - Configure the terminal (ZSH, starship, zioxde, etc...)
 - SSH [setup](./.ssh/_gh_gen.sh)
 - Neovim, TMUX, FZF...
