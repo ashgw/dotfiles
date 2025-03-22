@@ -157,6 +157,11 @@ if [ "$ans" == "y" ]; then
     bash <(curl -L $REPO/install/arbitrary/node)
     echo -e "${GREEN}Node installation done!.${ENDCOLOR}"
 
+
+    echo -e "\e[1;32mInstalling bun...\e[0m"
+    bash <(curl -L $REPO/install/arbitrary/bun)
+    echo -e "${GREEN}Bun installation done!.${ENDCOLOR}"
+
     echo -e "\e[1;32mInstalling pnpm...\e[0m"
     bash <(curl -L $REPO/install/arbitrary/pnpm)
     echo -e "${GREEN}Pnpm installation done!.${ENDCOLOR}"
