@@ -53,6 +53,11 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
     <img src="./images/py.png" alt="Image 1" style="width: 100%;">
   </div>
 
+ <div style="flex: 1; min-width: 200px; margin: 5px;">
+    <img src="./images/cursor.png" alt="Image 1" style="width: 100%;">
+  </div>
+
+
 
 
 
