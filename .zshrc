@@ -202,7 +202,7 @@ ghkey() {
     bash ~/.ssh/_gh_gen.sh
 }
 
-# terminate all conatainers
+# terminate all containers
 tercon() {
 	for c in $(docker ps -a | tail -n+2 | awk '{print $1}'); do
   		docker stop "${c}" || :
@@ -210,10 +210,6 @@ tercon() {
 	done
 }
 
-# create a new directory & cd into it
-mdd () {
- mkdir -p "$@" && cd "$@"
-}
 # remove all volumes
 tervol() {
    docker volume rm $(docker volume ls -q)
@@ -226,6 +222,8 @@ terimg() {
     done
 }
 
+# all in one
+terall(){ tercon && tervol && terimg }
 
 dprune() {
 	 tercon && terimg && tervol
@@ -233,6 +231,11 @@ dprune() {
    docker system prune -f
    docker image prune -f
    docker volume prune -f
+}
+
+# create a new directory & cd into it
+mdd () {
+ mkdir -p "$@" && cd "$@"
 }
 
 # shows pretty `man` page.
