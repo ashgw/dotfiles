@@ -46,40 +46,46 @@ zstyle ':completion:*' menu select
 zmodload zsh/complist
 compinit
 _comp_options+=(globdots)		# Include hidden files.
+get_some_bitches(){
+	echo 'coming soon, tap in G'
+}
 
-# Some shortcuts
+get_a_job_broke_aaah(){
+	google-chrome "https://www.google.com/search?q=site%3A*.com+-site%3Aremoterocketship.com+-site%3Aweworkremotely.com+-site%3Ajobspresso.co+-site%3Ajustremote.co+-site%3Adynamitejobs.com+-site%3Aworkatastartup.com+-site%3Aangel.co+-site%3Ahimalayas.app+-site%3Aoutsourcely.com+-site%3Aeuropelanguagejobs.com+-site%3Ajobicy.com+-site%3Alanding.jobs+-site%3Aworkingnomads.co+inurl%3A(jobs+OR+careers)+(%22TypeScript%22+OR+%22Next.js%22+OR+%22Node.js%22+OR+%22Python%22+OR+%22Laravel%22)+(%22remote%22+OR+%22online%22)+(%22equity%22)+(%22United+States%22+OR+%22US-based%22)+after%3A2025-02-01"
+
+}
 
 alias \
 	c="clear" \
-	ka="killall" \
+	ez="eza --long --header --inode --git" \
 	sdn="shutdown -h now" \
-	e="$EDITOR" \
-	a="apt-get" \
-	i="sudo apt-get install" \
-	g="git" \
-	l="lsd -a" \
-	v="nvim" \
-	ts="pnpm ts-node" \
 	t="touch" \
 	tt="tmux" \
 	obs="obsidian" \
 	p="python3 -m" \
+	l="lsd -a" \
+	v="nvim" \
 	reload=". ~/.zshrc" \
 	y="rm -rf"\
 	f="fzf" \
-	lpg="loadpg" \
-	tf="terraform" \
 	b="cd .."  \
 	bb="cd ..."   \
 	bbb="cd ...."   \
 	bbbb="cd ....."  \
 	bbbbb="cd ......" \
+	ka="killall" \
   bat="\bat --theme=GitHub" \
   sudo='sudo ' \
   j="just"\
 	x="chmod +x" \
-	ez="eza --long --header --inode --git" \
 	ddgo="librewolf https://duckduckgo.com" \
+	e="$EDITOR" \
+	lpg="loadpg" \
+	tf="terraform" \
+	a="apt-get" \
+	i="sudo apt-get install" \
+	g="git" \
+	ts="pnpm ts-node" \
 	gh="librewolf https://github.com/ashgw" \
 	d_stopall="docker stop $(docker ps -a -q)" \
 	d_restratall="docker restart $(docker ps -a -q)" \
@@ -204,6 +210,10 @@ tercon() {
 	done
 }
 
+# create a new directory & cd into it
+mdd () {
+ mkdir -p "$@" && cd "$@"
+}
 # remove all volumes
 tervol() {
    docker volume rm $(docker volume ls -q)
@@ -237,17 +247,6 @@ man () {
     LESS_TERMCAP_us=$(printf "\e[1;32m") \
       man "$@"
 }
-
-# create a new directory & cd into it
-mdd () {
- mkdir -p "$@" && cd "$@"
-}
-
-
-
-
-
-
 
 # encrypt a file with a passphrase
 passenc() {
