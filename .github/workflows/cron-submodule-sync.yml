@@ -1,7 +1,6 @@
 name: Submodule Sync
 on:
   schedule:
-    # Runs "At minute 15 past every 4th hour." (see https://crontab.guru)
     - cron: "15 */4 * * *"
   workflow_dispatch: ~
 
@@ -16,8 +15,18 @@ jobs:
           submodules: recursive
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Commit
+      - name: Pull latest commits for all submodules
         run: |
-          git config user.email "actions@github.com"
+          git submodule foreach --recursive '
+            echo "Updating $name..."
+            git checkout main || git checkout master || exit 1
+            git pull origin HEAD
+          '
+
+      - name: Commit updated submodule references
+        run: |
           git config user.name "github-actions"
-          git commit -am "auto updated submodule references" && git push || echo "No changes to commit"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "auto updated submodule references" || echo "No changes to commit"
+          git push || echo "No push needed"
