@@ -23,6 +23,11 @@ jobs:
             git pull origin HEAD
           '
 
+      - name: Configure Git Author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Commit updated submodule references
         run: |
           git add .
