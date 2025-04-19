@@ -1,8 +1,8 @@
 name: Submodule Sync
 on:
   schedule:
-    - cron: "15 */4 * * *"
-  workflow_dispatch: ~
+    - cron: "15 4 * * *" # Runs every day at 04:15 UTC
+  workflow_dispatch:
 
 jobs:
   submodule-sync:
@@ -25,8 +25,6 @@ jobs:
 
       - name: Commit updated submodule references
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
           git add .
           git commit -m "auto updated submodule references" || echo "No changes to commit"
           git push || echo "No push needed"
