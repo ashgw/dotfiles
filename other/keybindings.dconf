@@ -1,5 +1,5 @@
 [/]
-custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4/']
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom6/']
 screensaver=['F8']
 terminal=@as []
 volume-down=['F2']
@@ -30,3 +30,13 @@ name='Obsidian'
 binding='<Alt>c'
 command='cursor'
 name='Cursor'
+
+[custom-keybindings/custom5]
+binding='<Alt>a'
+command='./AnythingLLMDesktop/start'
+name='AnythingLM'
+
+[custom-keybindings/custom6]
+binding='<Alt>w'
+command='/home/ashgw/whisper/whisper-toggle.sh\n'
+name='whisper'
