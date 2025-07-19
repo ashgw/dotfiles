@@ -1,16 +1,13 @@
-# TODO: Maybed add these back ?
-# -> [ $os ](bg:#6a0dad fg:#ffffff)\
-#  -> [$username](bg:#6a0dad fg:#ffffff)\
-
 format = """
-[░▒▓](#6a0dad)\
-[👽 ](bg:#6a0dad fg:#ffffff)\
-[](bg:#9b59b6 fg:#6a0dad)\
+[](#c678dd)\
+$os\
+[](bg:#c678dd fg:#090c0c)\
+[](bg:#d291e4 fg:#c678dd)\
 $directory\
-[](fg:#9b59b6 bg:#8e44ad)\
+[](fg:#d291e4 bg:#a054b4)\
 $git_branch\
 $git_status\
-[](fg:#8e44ad bg:#7d3f8c)\
+[](fg:#a054b4 bg:#70326e)\
 $nodejs\
 $rust\
 $golang\
@@ -18,13 +15,13 @@ $zsh\
 $vscode\
 $python\
 $php\
-[](fg:#7d3f8c bg:#6a0dad)\
+[](fg:#70326e bg:#3e1c3d)\
 $time\
-[ ](fg:#6a0dad)\
+[ ](fg:#3e1c3d)\
 \n$character"""
 
 [directory]
-style = "fg:#ffffff bg:#9b59b6"
+style = "fg:#e3e5e5 bg:#d291e4"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncation_symbol = "…/"
@@ -32,14 +29,16 @@ truncation_symbol = "…/"
 [directory.substitutions]
 "Documents" = "󰈙 "
 "Downloads" = " "
-"Music" = "󰝚 "
+"Music" = " "
 "Pictures" = " "
-"Developer" = "󰲋 "
-
+"work" = "🗂️ "
+"personal" = "🧑‍💻 "
+"trash" = "🗑️ "
+"tmp" = "⚙️ "
 
 [git_status]
-style = "fg:#6a0dad bg:#4a2c6e"
-format = '[[($all_status$ahead_behind )](fg:#769ff0 bg:#8e44ad)]($style)'
+style = "fg:#70326e bg:#3e1c3d"
+format = '[[($all_status$ahead_behind )](fg:#769ff0 bg:#a054b4)]($style)'
 conflicted = '‼'
 ahead = '⇡'
 behind = '⇣'
@@ -52,14 +51,53 @@ staged = '[++\($count\)](green)'
 renamed = '➜'
 deleted = '✖'
 
+[git_branch]
+style = "bg:#a054b4"
+format = '[[ $symbol $branch ](fg:#d291e4 bg:#a054b4)]($style)'
+
+[character]
+success_symbol = "[✔](fg:#82aaff)"
+error_symbol = "[✖](fg:#c792ea)"
+
+[nodejs]
+symbol = ""
+style = "bg:#70326e"
+format = '[[ $symbol ($version) ](fg:#d291e4 bg:#70326e)]($style)'
+
+[rust]
+symbol = ""
+style = "bg:#70326e"
+format = '[[ $symbol ($version) ](fg:#d291e4 bg:#70326e)]($style)'
+
+[golang]
+symbol = ""
+style = "bg:#70326e"
+format = '[[ $symbol ($version) ](fg:#d291e4 bg:#70326e)]($style)'
+
+[python]
+symbol = ""
+style = "bg:#70326e"
+format = '[[ $symbol ($version) ](fg:#d291e4 bg:#70326e)]($style)'
+
+[php]
+symbol = ""
+style = "bg:#70326e"
+format = '[[ $symbol ($version) ](fg:#d291e4 bg:#70326e)]($style)'
+
+[time]
+disabled = false
+time_format = "%R" # Hour:Minute Format
+# style = "bg:#3e1c3d"
+format = '[[ $time ](fg:#c678dd bg:#3e1c3d)]($style)'
 
 [os]
 disabled = false
-style = "bg:surface0 fg:text"
+style = "bg:#c678dd"
 
 [os.symbols]
 Windows = "󰍲"
-Ubuntu = "󰕈"
+# Ubuntu = "󰕈"
+Ubuntu = "󰌽 "
 SUSE = ""
 Raspbian = "󰐿"
 Mint = "󰣭"
@@ -77,51 +115,3 @@ CentOS = ""
 Debian = "󰣚"
 Redhat = "󱄛"
 RedHatEnterprise = "󱄛"
-
-
-
-[username]
-show_always = true
-style_user = "bg:surface0 fg:text"
-style_root = "bg:surface0 fg:text"
-format = '[ $user ]($style)'
-
-[git_branch]
-symbol = ""
-style = "bg:#8e44ad"
-format = '[[ $symbol $branch ](fg:#ffffff bg:#8e44ad)]($style)'
-
-[character]
-success_symbol = "[✔](fg:#82aaff)"
-error_symbol = "[✖](fg:#c792ea)"
-
-[nodejs]
-symbol = ""
-style = "bg:#7d3f8c"
-format = '[[ $symbol ($version) ](fg:#ffffff bg:#7d3f8c)]($style)'
-
-[rust]
-symbol = ""
-style = "bg:#7d3f8c"
-format = '[[ $symbol ($version) ](fg:#ffffff bg:#7d3f8c)]($style)'
-
-[golang]
-symbol = ""
-style = "bg:#7d3f8c"
-format = '[[ $symbol ($version) ](fg:#ffffff bg:#7d3f8c)]($style)'
-
-[python]
-symbol = ""
-style = "bg:#7d3f8c"
-format = '[[ $symbol ($version) ](fg:#ffffff bg:#7d3f8c)]($style)'
-
-[php]
-symbol = ""
-style = "bg:#7d3f8c"
-format = '[[ $symbol ($version) ](fg:#ffffff bg:#7d3f8c)]($style)'
-
-[time]
-disabled = false
-time_format = "%R" # Hour:Minute Format
-style = "bg:#6a0dad"
-format = '[[  $time ](fg:#ffffff bg:#6a0dad)]($style)'
