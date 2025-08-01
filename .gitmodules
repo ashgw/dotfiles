@@ -1,3 +1,7 @@
+[submodule "zshfuncs"]
+    path = zshfuncs
+  	url = https://github.com/ashgw/zshfuncs.git
+
 [submodule ".packages"]
     path = .packages
 	url = https://github.com/ashgw/.packages.git
