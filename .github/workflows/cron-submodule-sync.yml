@@ -1,7 +1,8 @@
-name: Submodule Sync
+name: Sync Submodules Daily
+
 on:
   schedule:
-    - cron: "15 4 * * *" # Runs every day at 04:15 UTC
+    - cron: '0 15 * * *'
   workflow_dispatch:
 
 jobs:
@@ -9,7 +10,7 @@ jobs:
     name: Submodule update
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout repo with submodules using PAT
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -23,13 +24,13 @@ jobs:
             git pull origin HEAD
           '
 
-      - name: Configure Git Author
+      - name: Configure Git author
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Commit updated submodule references
+      - name: Commit & push updates
         run: |
           git add .
-          git commit -m "auto updated submodule references" || echo "No changes to commit"
+          git commit -m "auto updated submodule references" || echo "No changes"
           git push || echo "No push needed"
