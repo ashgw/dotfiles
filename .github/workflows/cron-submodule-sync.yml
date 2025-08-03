@@ -9,12 +9,20 @@ jobs:
   submodule-sync:
     name: Submodule update
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout repo with submodules using PAT
+      - name: Checkout repo with submodules (using PAT)
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          repository: ashgw/dotfiles
           token: ${{ secrets.PERSONAL_TOKEN }}
+          submodules: recursive
+
+      - name: Configure Git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Pull latest commits for all submodules
         run: |
@@ -23,11 +31,6 @@ jobs:
             git checkout main || git checkout master || exit 1
             git pull origin HEAD
           '
-
-      - name: Configure Git author
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Commit & push updates
         run: |
