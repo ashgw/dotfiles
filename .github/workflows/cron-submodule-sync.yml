@@ -2,7 +2,7 @@ name: Sync Submodules Daily
 
 on:
   schedule:
-    - cron: '0 15 * * *'
+    - cron: '0 15 * * *'  # runs every day at 15:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ashgw/dotfiles
-          token: ${{ secrets.PERSONAL_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           submodules: recursive
 
       - name: Configure Git author
