@@ -103,7 +103,6 @@ Plug 'vim-airline/vim-airline-themes'
 Plug 'ryanoasis/vim-devicons'
 Plug 'scrooloose/nerdcommenter'
 Plug 'sheerun/vim-polyglot'
-Plug 'jiangmiao/auto-pairs'
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'tpope/vim-fugitive'
 Plug 'davidhalter/jedi-vim'
@@ -116,19 +115,12 @@ Plug 'scrooloose/nerdtree', { 'on':  'NERDTreeToggle' }
 Plug 'tpope/vim-fireplace', { 'for': 'clojure' }
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
-
-" Others
+Plug 'jiangmiao/auto-pairs'
 Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
-
-" One more
 Plug 'wbthomason/packer.nvim'
 Plug 'svrana/neosolarized.nvim'
 Plug 'nvim-lualine/lualine.nvim'
 Plug 'onsails/lspkind-nvim'
-Plug 'L3MON4D3/LuaSnip'
-Plug 'hrsh7th/cmp-nvim-lsp'
-Plug 'hrsh7th/cmp-buffer'
-Plug 'hrsh7th/nvim-cmp'
 Plug 'neovim/nvim-lspconfig'
 Plug 'jose-elias-alvarez/null-ls.nvim'
 Plug 'MunifTanjim/prettier.nvim'
@@ -150,6 +142,7 @@ Plug 'iamcco/markdown-preview.nvim'
 Plug 'kyazdani42/nvim-web-devicons' " For fancy icons
 Plug 'nvim-lualine/lualine.nvim'
 
+let g:AutoPairsMapCR = 0
 let g:bargreybars_auto=0
 let g:airline_solorized_bg='dark'
 let g:airline_powerline_fonts=1
@@ -344,7 +337,7 @@ inoremap <silent><expr> <C-Space> coc#refresh()
 inoremap <silent><expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
 inoremap <silent><expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 
-" Accept suggestion with Enter
+:" Accept suggestion with Enter
 inoremap <silent><expr> <CR> pumvisible() ? coc#pum#confirm() : "\<CR>"
 
 " use fuzzy finder inside vim
