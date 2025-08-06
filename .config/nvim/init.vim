@@ -290,6 +290,9 @@ map <leader>s :!clear && shellcheck -x %<CR>
 " Replace all is aliased to S.
 nnoremap S :%s//g<Left><Left>
 
+" Force .tsx and .jsx to be treated as TypeScriptReact
+autocmd BufNewFile,BufRead *.tsx,*.jsx set filetype=typescriptreact
+
 " Automatically deletes all trailing whitespace and newlines at end of file on save. & reset cursor position
 autocmd BufWritePre * let currPos = getpos(".")
 autocmd BufWritePre * %s/\s\+$//e
