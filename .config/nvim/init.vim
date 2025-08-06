@@ -1,7 +1,6 @@
 let mapleader =","
 
-" Auto plugin setup
-
+" Auto setup all the plugins on first lauch
 if ! filereadable(system('echo -n "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/autoload/plug.vim"'))
     echo "Downloading junegunn/vim-plug to manage plugins..."
     silent !mkdir -p ${XDG_CONFIG_HOME:-$HOME/.config}/nvim/autoload/
@@ -153,7 +152,6 @@ Plug 'nvim-lualine/lualine.nvim'
 let g:bargreybars_auto=0
 let g:airline_solorized_bg='dark'
 let g:airline_powerline_fonts=1
-let g:airline#extension#tabline#enable=1
 let g:airline#extension#tabline#left_sep=' '
 let g:airline#extension#tabline#left_alt_sep='|'
 let g:airline#extension#tabline#formatter='unique_tail'
@@ -169,12 +167,65 @@ let g:WebDevIconsUnicodeDecorateFileNodesExtensionSymbols['nerdtree'] = '#'
 
 call plug#end()
 
+
+""""""""""""""""""""""""
+"""""""""" SCRIPTS  """"
+" basically make the theme go hard
+lua << EOF
+require("catppuccin").setup({
+  flavour = "mocha", -- latte, frappe, macchiato, mocha
+  integrations = {
+    bufferline = true,
+    treesitter = true,
+    coc_nvim = true,
+    nvimtree = true,
+    native_lsp = {
+      enabled = true,
+    }
+  }
+})
+vim.cmd.colorscheme "catppuccin"
+EOF
+
+" === Enable bufferline.nvim tab bar ===
+lua << EOF
+require("bufferline").setup({
+  options = {
+    mode = "buffers",
+    diagnostics = "nvim_lsp",
+    separator_style = "slant",
+    show_close_icon = false,
+    show_buffer_close_icons = false,
+    always_show_bufferline = true,
+  },
+})
+EOF
+
+" configure treesetter modern syntax highliting
+lua << EOF
+require'nvim-treesitter.configs'.setup {
+  ensure_installed = {
+    "typescript",
+    "tsx",
+    "javascript",
+    "json",
+    "html",
+    "css",
+    "lua",
+    "vim",
+    "bash"
+  },
+  highlight = {
+    enable = true,
+    additional_vim_regex_highlighting = false,
+  },
+}
+EOF
+
+""""""""""""""""""""
+
 " Enable autocompletion:
 set wildmode=longest,list,full
-
-" Autocompletion with Tab
-inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
-inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 
 " Spell-check set to <leader>o, 'o' for 'orthography':
 map <leader>o :setlocal spell! spelllang=en_us<CR>
@@ -211,6 +262,12 @@ map <C-h> <C-w>h
 map <C-j> <C-w>j
 map <C-k> <C-w>k
 map <C-l> <C-w>l
+
+" Tab-like buffer navigation (bufferline)
+nnoremap <silent> <Tab> :BufferLineCycleNext<CR>
+nnoremap <silent> <S-Tab> :BufferLineCyclePrev<CR>
+nnoremap <silent> <C-x> :bd<CR> " close current buffer
+nnoremap <leader>bl :ls<CR>:b<Space>
 
 " Check file in shellcheck:
 map <leader>s :!clear && shellcheck -x %<CR>
@@ -254,15 +311,25 @@ nnoremap <leader>h :call ToggleHiddenAll()<CR>
 " default theme for now
 " colorscheme catppuccin-mocha
 " colorscheme dracula
+"             tokyonight-night, tokyonight-sorm
 "
-colorscheme catppuccin-mocha
-"TAB compeletion
-inoremap <silent><expr> <TAB> pumvisible() ? "\<C-n>" : "\<TAB>"
-inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+" colorscheme catppuccin-mocha
 
-" Use Enter to accept the suggestion
-inoremap <expr> <CR> pumvisible() ? coc#pum#confirm() : "\<CR>"
+" ===============================
+" == CoC Autocomplete Mappings ==
+" ===============================
 
+" Trigger completion menu manually (like VSCode ctrl+space)
+inoremap <silent><expr> <C-Space> coc#refresh()
+
+" Use Tab for next suggestion and Shift-Tab for previous
+inoremap <silent><expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
+inoremap <silent><expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
+
+" Accept suggestion with Enter
+inoremap <silent><expr> <CR> pumvisible() ? coc#pum#confirm() : "\<CR>"
+
+" use fuzzy finder inside vim
 cnoreabbrev ff FZF!
 
 " Transparent BG
