@@ -57,6 +57,9 @@ Plug 'maxmellon/vim-jsx-pretty'   " JS and JSX syntax
 Plug 'jparise/vim-graphql'
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
+
+" Navigation
+Plug 'jlanzarotta/bufexplorer'
 " Remap keys for applying codeAction to the current line.
 nmap <leader>ac  <Plug>(coc-codeaction)
 " Apply AutoFix to problem on the current line.
@@ -67,6 +70,10 @@ nmap <silent> gd <Plug>(coc-definition)
 nmap <silent> gy <Plug>(coc-type-definition)
 nmap <silent> gi <Plug>(coc-implementation)
 nmap <silent> gr <Plug>(coc-references)
+
+" Custom navigation with Ctrl
+nnoremap <C-d> <Plug>(coc-definition)
+nnoremap <C-a> <C-o>
 
 " CoC extensions
 let g:coc_global_extensions = ['coc-tsserver', 'coc-python', 'coc-rust-analyzer', 'coc-go', 'coc-docker']
@@ -80,7 +87,6 @@ let g:kite_supported_languages = ['python', 'javascript']
 
 " nerd toggle needs to show hidden files
 let NERDTreeShowHidden=1
-
 
 " Themes
 Plug 'folke/tokyonight.nvim'
