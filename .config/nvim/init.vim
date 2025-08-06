@@ -51,6 +51,7 @@ Plug 'tpope/vim-commentary'
 " JS ecosystem setup
 Plug 'ap/vim-css-color'
 Plug 'pangloss/vim-javascript'    " JavaScript support
+Plug 'pantharshit00/vim-prisma'
 Plug 'leafgarland/typescript-vim' " TypeScript syntax
 Plug 'maxmellon/vim-jsx-pretty'   " JS and JSX syntax
 Plug 'jparise/vim-graphql'
@@ -167,6 +168,20 @@ let g:WebDevIconsUnicodeDecorateFileNodesExtensionSymbols['nerdtree'] = '#'
 
 call plug#end()
 
+" Prisma language server support via CoC
+if executable('prisma-language-server')
+  let g:coc_user_config = {
+  \   'languageserver': {
+  \     'prisma': {
+  \       'command': 'prisma-language-server',
+  \       'args': ['--stdio'],
+  \       'filetypes': ['prisma'],
+  \       'rootPatterns': ['schema.prisma'],
+  \       'trace.server': 'verbose'
+  \     }
+  \   }
+  \ }
+endif
 
 """"""""""""""""""""""""
 """""""""" SCRIPTS  """"
