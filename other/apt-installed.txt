@@ -110,6 +110,7 @@ python3-psutil
 qrencode
 remmina
 rhythmbox
+ripgrep
 scarlett2-firmware
 screenfetch
 shellcheck

@@ -1,0 +1,8 @@
+alacritty
+broot
+dua-cli
+img_watermarker
+just
+lsd
+wasm-pack
+zoxide
