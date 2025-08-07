@@ -26,6 +26,7 @@ doppler
 droidcam-client
 fd-find
 ffmpeg
+figlet
 flatpak
 fonts-noto
 gawk
