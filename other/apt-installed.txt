@@ -50,6 +50,7 @@ gstreamer1.0-plugins-ugly
 hsetroot
 htop
 hyphen-en-us
+ifstat
 imagemagick
 jq
 kde-plasma-desktop
