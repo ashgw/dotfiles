@@ -1,7 +1,2 @@
-claude-code
-cli
-graphite-cli
 corepack
 npm
-pnpm
-ts-node
