@@ -257,10 +257,6 @@ if executable('prisma-language-server')
   \ }
 endif
 
-" ==========================================================
-"                    LUA CONFIGURATIONS
-" ==========================================================
-
 " Telescope config
 lua << EOF
 local telescope = require("telescope")
