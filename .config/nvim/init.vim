@@ -418,8 +418,8 @@ nnoremap <leader>ft :echo expand('%:t')<CR>
 " Path relative to current cwd
 nnoremap <leader>fr :echo fnamemodify(expand('%'), ':.')<CR>
 
-" Copy absolute path to clipboard
-nnoremap <leader>fy :let @+ = expand('%:p') \| echo 'yanked file path'<CR>
+" Copy relative path to clipboard
+nnoremap <leader>fy :let @+ = fnamemodify(expand('%'), ':.') \| echo 'yanked relative file path'<CR>
 
 " Change window-local cwd to the file's directory (useful for builds)
 nnoremap <leader>cd :lcd %:p:h<CR>
