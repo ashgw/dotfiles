@@ -434,9 +434,8 @@ function! s:rel_to_git_root()
 endfunction
 nnoremap <leader>fg :echo <SID>rel_to_git_root()<CR>
 
-
-
-
+" Instantly opens Telescope in the folder of your current file
+nnoremap <leader>f :Telescope file_browser path=%:p:h<CR>
 
 " Open/close quickfix and hop through results fast
 nnoremap <silent> <leader>qo :copen<CR>
