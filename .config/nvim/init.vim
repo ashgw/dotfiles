@@ -118,6 +118,71 @@ call plug#end()
 " ==========================================================
 " Buffers
 " === UI: lualine + bufferline only
+" Truecolor and global statusline for lualine
+set termguicolors
+set laststatus=3
+
+lua << EOF
+-- Safe Catppuccin palette load with fallback, that bubble line
+local ok, palettes = pcall(require, "catppuccin.palettes")
+local pal
+if ok and palettes and type(palettes.get_palette) == "function" then
+  pal = palettes.get_palette("mocha")
+else
+  pal = {
+    rosewater = "#f5e0dc", flamingo = "#f2cdcd", pink = "#f5c2e7", mauve = "#cba6f7",
+    red = "#f38ba8", maroon = "#eba0ac", peach = "#fab387", yellow = "#f9e2af",
+    green = "#a6e3a1", teal = "#94e2d5", sky = "#89dceb", sapphire = "#74c7ec",
+    blue = "#89b4fa", lavender = "#b4befe",
+    text = "#cdd6f4", subtext1 = "#bac2de", overlay0 = "#6c7086",
+    surface0 = "#313244", base = "#1e1e2e", mantle = "#181825", crust = "#11111b",
+  }
+end
+
+-- Bubbles theme
+local bubbles_theme = {
+  normal = {
+    a = { fg = pal.crust, bg = pal.lavender, gui = "bold" },
+    b = { fg = pal.text,  bg = pal.surface0 },
+    c = { fg = pal.subtext1, bg = pal.base },
+  },
+  insert  = { a = { fg = pal.crust, bg = pal.green,   gui = "bold" } },
+  visual  = { a = { fg = pal.crust, bg = pal.mauve,   gui = "bold" } },
+  replace = { a = { fg = pal.crust, bg = pal.red,     gui = "bold" } },
+  command = { a = { fg = pal.crust, bg = pal.peach,   gui = "bold" } },
+  inactive = {
+    a = { fg = pal.overlay0, bg = pal.mantle },
+    b = { fg = pal.overlay0, bg = pal.mantle },
+    c = { fg = pal.overlay0, bg = pal.mantle },
+  },
+}
+
+require("lualine").setup({
+  options = {
+    theme = bubbles_theme,
+    icons_enabled = true,
+    component_separators = { left = "", right = "" },
+    section_separators   = { left = "", right = "" },
+    globalstatus = true,
+    disabled_filetypes = { "NERDTree", "packer" },
+  },
+  sections = {
+    lualine_a = { { "mode", separator = { left = "" }, right_padding = 2 } },
+    lualine_b = { "branch", "diff", "diagnostics" },
+    lualine_c = { { "filename", path = 1 } },
+    lualine_x = { "encoding", "fileformat", "filetype" },
+    lualine_y = { "progress" },
+    lualine_z = { { "location", separator = { right = "" }, left_padding = 2 } },
+  },
+  inactive_sections = {
+    lualine_a = { { "filename", separator = { left = "", right = "" } } },
+    lualine_b = {}, lualine_c = {},
+    lualine_x = {}, lualine_y = {}, lualine_z = {},
+  },
+  extensions = { "fzf", "quickfix", "fugitive" },
+})
+EOF
+
 set laststatus=2  " show statusline so lualine renders
 
 lua << EOF
