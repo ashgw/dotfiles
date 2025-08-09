@@ -380,12 +380,37 @@ nnoremap <C-q> :stop<CR>
 inoremap <C-q> <C-o>:stop<CR>
 vnoremap <C-q> <Esc>:stop<CR>
 
-"Buffer navigation
-nnoremap <silent> <Tab> :BufferLineCycleNext<CR>
-nnoremap <silent> <S-Tab> :BufferLineCyclePrev<CR>
-nnoremap <silent> <C-x> :bd<CR>
+" =====
+" Buffer navigation
+"
+" Smart buffer cycling: Bufferline when visible, fallback to :bnext/:bprevious
+function! CycleBufNext()
+  if exists(':BufferLineCycleNext') && &showtabline > 0
+    execute 'BufferLineCycleNext'
+  else
+    bnext
+  endif
+endfunction
+
+function! CycleBufPrev()
+  if exists(':BufferLineCyclePrev') && &showtabline > 0
+    execute 'BufferLineCyclePrev'
+  else
+    bprevious
+  endif
+endfunction
+
+nnoremap <silent> <Tab>   :call CycleBufNext()<CR>
+nnoremap <silent> <S-Tab> :call CycleBufPrev()<CR>
+" Pick by label even if bar is hidden
+nnoremap <silent> <leader>bp :BufferLinePick<CR>
+" Quick list of buffers, then type the number
 nnoremap <leader>bl :ls<CR>:b<Space>
 
+"""
+nnoremap <silent> <C-x> :bd<CR>
+nnoremap <leader>bl :ls<CR>:b<Space>
+"""
 " Open/close quickfix and hop through results fast
 nnoremap <silent> <leader>qo :copen<CR>
 nnoremap <silent> <leader>qc :cclose<CR>
