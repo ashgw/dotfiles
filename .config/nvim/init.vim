@@ -266,13 +266,6 @@ nnoremap <silent> <leader>qc :cclose<CR>
 nnoremap <silent> ]q :cnext<CR>
 nnoremap <silent> [q :cprev<CR>
 
-" ======= Coc specific
-" Add missing imports via code action
-nnoremap <leader>mi :call CocActionAsync('codeAction', '', ['source.addMissingImports.ts'])<CR>
-" Organize imports
-nnoremap <leader>oi :call CocActionAsync('runCommand', 'editor.action.organizeImport')<CR>
-" ================
-
 " Split navigation
 map <C-h> <C-w>h
 map <C-j> <C-w>j
@@ -288,9 +281,14 @@ nmap <silent> gi <Plug>(coc-implementation)
 nmap <silent> gr <Plug>(coc-references)
 nnoremap <C-d> <Plug>(coc-definition)
 nnoremap <C-a> <C-o>
-
+" jump to all usages (list) – CoC
+nnoremap <silent> <C-r> <Plug>(coc-references)
 " Spell-check toggle
 map <leader>o :setlocal spell! spelllang=en_us<CR>
+" Add missing imports via code action
+nnoremap <leader>mi :call CocActionAsync('codeAction', '', ['source.addMissingImports.ts'])<CR>
+" Organize imports
+nnoremap <leader>oi :call CocActionAsync('runCommand', 'editor.action.organizeImport')<CR>
 
 " NerdTree toggle
 map <leader>n :NERDTreeToggle<CR>
