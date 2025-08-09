@@ -18,7 +18,9 @@ imap ,, <esc>:keepp /<++><CR>ca<
 " ==========================================================
 "                   BASIC EDITOR SETTINGS
 " ==========================================================
-set shell=/bin/zsh
+set shell=/usr/bin/zsh
+" optional but nice: keep stderr with stdout for :make etc.
+set shellredir=>%s\ 2>&1
 set encoding=UTF-8
 set number
 set relativenumber
@@ -407,6 +409,35 @@ nnoremap <leader>bl :ls<CR>:b<Space>
 nnoremap <silent> <C-x> :bd<CR>
 nnoremap <leader>bl :ls<CR>:b<Space>
 """
+" Absolute file path
+nnoremap <leader>fa :echo expand('%:p')<CR>
+
+" File name only (tail)
+nnoremap <leader>ft :echo expand('%:t')<CR>
+
+" Path relative to current cwd
+nnoremap <leader>fr :echo fnamemodify(expand('%'), ':.')<CR>
+
+" Copy absolute path to clipboard
+nnoremap <leader>fy :let @+ = expand('%:p') \| echo 'yanked file path'<CR>
+
+" Change window-local cwd to the file's directory (useful for builds)
+nnoremap <leader>cd :lcd %:p:h<CR>
+
+" Jump cwd to git root fast
+nnoremap <leader>gr :execute 'cd ' . systemlist('git rev-parse --show-toplevel')[0]<CR>
+
+" Show file path relative to git root
+function! s:rel_to_git_root()
+  let root = systemlist('git rev-parse --show-toplevel')[0]
+  return substitute(expand('%:p'), '^'.escape(root, '\'), '', '')[1:]
+endfunction
+nnoremap <leader>fg :echo <SID>rel_to_git_root()<CR>
+
+
+
+
+
 " Open/close quickfix and hop through results fast
 nnoremap <silent> <leader>qo :copen<CR>
 nnoremap <silent> <leader>qc :cclose<CR>
