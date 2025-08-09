@@ -63,6 +63,7 @@ libavcodec-dev
 libayatana-appindicator3-1
 libffi-dev
 libfontconfig1-dev
+libfprint-2-tod1-goodix
 libglib2.0-dev
 libgtk-4-dev
 libimage-exiftool-perl
