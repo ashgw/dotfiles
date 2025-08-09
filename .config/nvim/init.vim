@@ -254,7 +254,49 @@ EOF
 " ==========================================================
 "                  KEYBINDINGS & COMMANDS
 " ==========================================================
-" Buffer navigation
+" === VSCode-style Undo/Redo, Save, Suspend ===
+" 0) Clear any old conflicting maps
+silent! nunmap <C-r>
+silent! vunmap <C-r>
+silent! iunmap <C-r>
+silent! nunmap <C-u>
+silent! vunmap <C-u>
+silent! iunmap <C-u>
+silent! nunmap <C-z>
+silent! vunmap <C-z>
+silent! iunmap <C-z>
+silent! nunmap <C-s>
+silent! vunmap <C-s>
+silent! iunmap <C-s>
+silent! nunmap <C-q>
+silent! vunmap <C-q>
+silent! iunmap <C-q>
+
+" 1) Ctrl+Z = Undo
+nnoremap <C-z> u
+inoremap <C-z> <C-o>u
+vnoremap <C-z> <Esc>u
+
+" 2) Redo
+" Ctrl+Shift+Z preferred, Ctrl+Y as universal fallback
+nnoremap <C-S-z> <C-r>
+inoremap <C-S-z> <C-o><C-r>
+vnoremap <C-S-z> <Esc><C-r>
+nnoremap <C-y> <C-r>
+inoremap <C-y> <C-o><C-r>
+vnoremap <C-y> <Esc><C-r>
+
+" 3) Ctrl+S = Save (only writes if modified)
+nnoremap <C-s> :update<CR>
+inoremap <C-s> <C-o>:update<CR>
+vnoremap <C-s> <Esc>:update<CR>gv
+
+" 4) Ctrl+Q = Suspend to shell (quit with :q! manually)
+nnoremap <C-q> :stop<CR>
+inoremap <C-q> <C-o>:stop<CR>
+vnoremap <C-q> <Esc>:stop<CR>
+
+"Buffer navigation
 nnoremap <silent> <Tab> :BufferLineCycleNext<CR>
 nnoremap <silent> <S-Tab> :BufferLineCyclePrev<CR>
 nnoremap <silent> <C-x> :bd<CR>
