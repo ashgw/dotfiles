@@ -54,6 +54,7 @@ Plug 'svrana/neosolarized.nvim'
 Plug 'nvim-lualine/lualine.nvim'
 
 " ----- Helper Plugins -----
+Plug 'nvim-lua/plenary.nvim'
 Plug 'tpope/vim-surround'
 Plug 'preservim/nerdtree'
 Plug 'junegunn/goyo.vim'
@@ -72,7 +73,7 @@ Plug 'Xuyuanp/nerdtree-git-plugin'
 Plug 'tiagofumo/vim-nerdtree-syntax-highlight'
 Plug 'PhilRunninger/nerdtree-visual-selection'
 Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
-Plug 'scrooloose/nerdtree', { 'on':  'NERDTreeToggle' }
+Plug 'scrooloose/nerdcommenter', { 'on':  'NERDTreeToggle' }
 Plug 'tpope/vim-fireplace', { 'for': 'clojure' }
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
@@ -99,10 +100,10 @@ Plug 'iamcco/markdown-preview.nvim'
 
 " ----- Language-specific Plugins -----
 Plug 'ap/vim-css-color'
-Plug 'pangloss/vim-javascript'    " JavaScript support
-Plug 'pantharshit00/vim-prisma'
-Plug 'leafgarland/typescript-vim' " TypeScript syntax
-Plug 'maxmellon/vim-jsx-pretty'   " JS and JSX syntax
+Plug 'prisma/vim-prisma'
+Plug 'pangloss/vim-javascript'
+Plug 'leafgarland/typescript-vim'
+Plug 'maxmellon/vim-jsx-pretty'
 Plug 'jparise/vim-graphql'
 Plug 'rust-lang/rust.vim'
 Plug 'cespare/vim-toml', {'branch': 'main'}
@@ -166,6 +167,38 @@ endif
 " ==========================================================
 "                    LUA CONFIGURATIONS
 " ==========================================================
+
+" Telescope config
+lua << EOF
+local telescope = require("telescope")
+local actions = require("telescope.actions")
+
+telescope.setup({
+  defaults = {
+    vimgrep_arguments = {
+      "rg",
+      "--hidden",
+      "--glob", "!.git/*",
+      "--no-heading",
+      "--with-filename",
+      "--line-number",
+      "--column",
+      "--smart-case",
+    },
+    sorting_strategy = "ascending",
+    layout_config = { prompt_position = "top" },
+    mappings = {
+      i = { ["<C-q>"] = actions.send_selected_to_qflist + actions.open_qflist },
+      n = { ["q"] = actions.close },
+    },
+  },
+  pickers = {
+    live_grep = { only_sort_text = true },
+    grep_string = { only_sort_text = true },
+  },
+})
+EOF
+
 " Catppuccin theme setup
 lua << EOF
 require("catppuccin").setup({
@@ -251,6 +284,10 @@ inoremap <silent><expr> <CR> pumvisible() ? coc#pum#confirm() : "\<CR>"
 
 " Replace all alias
 nnoremap S :%s//g<Left><Left>
+
+" Telescope search hotkeys
+nnoremap <silent> <leader>r <cmd>Telescope live_grep<cr>
+nnoremap <silent> <leader>R <cmd>Telescope grep_string<cr>
 
 " ==========================================================
 "                  AUTOCOMMANDS & FUNCTIONS
