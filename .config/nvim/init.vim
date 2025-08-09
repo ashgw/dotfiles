@@ -1,4 +1,4 @@
-" ==========================================================
+" =========================================================d
 "                 LEADER & BOOTSTRAP SETUP
 " ==========================================================
 let mapleader = ","
@@ -438,7 +438,40 @@ nnoremap <leader>mi :call CocActionAsync('codeAction', '', ['source.addMissingIm
 nnoremap <leader>oi :call CocActionAsync('runCommand', 'editor.action.organizeImport')<CR>
 
 " NerdTree toggle
-map <leader>n :NERDTreeToggle<CR>
+
+" --- NERDTree clean UI + fixed width + open-on-current-file ---
+let g:NERDTreeWinPos = 'left'
+let g:NERDTreeWinSize = 28          " default width
+let g:NERDTreeMinimalUI = 1
+let g:NERDTreeDirArrows = 1
+let g:NERDTreeShowHidden = 1
+
+" Tidy the tree window visuals
+augroup NerdTreeTweak
+  autocmd!
+  autocmd FileType nerdtree setlocal nonumber norelativenumber nocursorline signcolumn=no
+  autocmd FileType nerdtree setlocal winfixwidth
+augroup END
+
+" Toggle tree focused on the current file, enforce width
+function! ToggleNERDTreeFind()
+  if exists("t:NERDTreeBufName") && bufwinnr(t:NERDTreeBufName) != -1
+    NERDTreeClose
+  else
+    execute 'NERDTreeFind'
+    execute 'vertical resize ' . get(g:, 'NERDTreeWinSize', 28)
+  endif
+endfunction
+nnoremap <leader>n :call ToggleNERDTreeFind()<CR>
+
+" Fast resize when the width feels wrong
+nnoremap <silent> <leader>[ :let g:NERDTreeWinSize=max([16, get(g:,'NERDTreeWinSize',28)-4]) \| execute 'vertical resize ' . g:NERDTreeWinSize<CR>
+nnoremap <silent> <leader>] :let g:NERDTreeWinSize=get(g:,'NERDTreeWinSize',28)+4 \| execute 'vertical resize ' . g:NERDTreeWinSize<CR>
+
+" Equalize non-tree windows without touching the fixed tree
+nnoremap <silent> <leader>= :wincmd =<CR>
+
+
 
 " FZF alias
 cnoreabbrev ff FZF!
