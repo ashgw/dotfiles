@@ -60,8 +60,6 @@ Plug 'preservim/nerdtree'
 Plug 'junegunn/goyo.vim'
 Plug 'jreybert/vimagit'
 Plug 'vimwiki/vimwiki'
-Plug 'vim-airline/vim-airline-themes'
-Plug 'vim-airline/vim-airline'
 Plug 'tpope/vim-commentary'
 Plug 'ryanoasis/vim-devicons'
 Plug 'scrooloose/nerdcommenter'
@@ -118,17 +116,38 @@ call plug#end()
 " ==========================================================
 "                      PLUGIN CONFIG
 " ==========================================================
-" Airline configuration
-let g:airline_solorized_bg='dark'
-let g:airline_powerline_fonts=1
-let g:airline#extension#tabline#left_sep=' '
-let g:airline#extension#tabline#left_alt_sep='|'
-let g:airline#extension#tabline#formatter='unique_tail'
-let g:airline_theme = 'onedark'
-let g:airline_symbols = {}
-let g:airline_symbols.colnr = ' C:'
-let g:airline_symbols.linenr = ' L:'
-let g:airline_symbols.maxlinenr = '☰ '
+" Buffers
+" === UI: lualine + bufferline only
+set laststatus=2  " show statusline so lualine renders
+
+lua << EOF
+require('lualine').setup({
+  options = {
+    theme = 'auto',
+    icons_enabled = true,
+    component_separators = '',
+    section_separators = ''
+  },
+  extensions = { 'fzf', 'quickfix', 'fugitive' }
+})
+EOF
+
+" Better buffer UX
+silent! nunmap <leader>bl
+nnoremap <silent> <leader>bl <cmd>Telescope buffers sort_lastused=true ignore_current_buffer=true<cr>
+nnoremap <silent> <leader>bp :BufferLinePick<CR>
+
+" Toggle buffer tabs visibility for a clean top bar
+let g:ash_showtabline = 2
+function! ToggleBufferTabs()
+  if g:ash_showtabline == 2
+    let g:ash_showtabline = 0
+  else
+    let g:ash_showtabline = 2
+  endif
+  execute 'set showtabline=' . g:ash_showtabline
+endfunction
+nnoremap <silent> <leader>bt :call ToggleBufferTabs()<CR>
 
 " NERDTree settings
 let NERDTreeShowHidden=1
