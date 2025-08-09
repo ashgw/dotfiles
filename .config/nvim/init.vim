@@ -149,6 +149,15 @@ let g:kite_supported_languages = ['python', 'javascript']
 " CoC global extensions
 let g:coc_global_extensions = ['coc-tsserver', 'coc-python', 'coc-rust-analyzer', 'coc-go', 'coc-docker']
 
+" configure auto imports for TS
+let g:coc_user_config = {
+\   'typescript.suggest.autoImports': v:true,
+\   'javascript.suggest.autoImports': v:true,
+\   'typescript.preferences.importModuleSpecifier': 'relative',
+\   'javascript.preferences.importModuleSpecifier': 'relative',
+\   'suggest.noselect': v:false
+\ }
+
 " Prisma language server support via CoC
 if executable('prisma-language-server')
   let g:coc_user_config = {
@@ -250,6 +259,19 @@ nnoremap <silent> <Tab> :BufferLineCycleNext<CR>
 nnoremap <silent> <S-Tab> :BufferLineCyclePrev<CR>
 nnoremap <silent> <C-x> :bd<CR>
 nnoremap <leader>bl :ls<CR>:b<Space>
+
+" Open/close quickfix and hop through results fast
+nnoremap <silent> <leader>qo :copen<CR>
+nnoremap <silent> <leader>qc :cclose<CR>
+nnoremap <silent> ]q :cnext<CR>
+nnoremap <silent> [q :cprev<CR>
+
+" ======= Coc specific
+" Add missing imports via code action
+nnoremap <leader>mi :call CocActionAsync('codeAction', '', ['source.addMissingImports.ts'])<CR>
+" Organize imports
+nnoremap <leader>oi :call CocActionAsync('runCommand', 'editor.action.organizeImport')<CR>
+" ================
 
 " Split navigation
 map <C-h> <C-w>h
