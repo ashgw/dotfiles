@@ -10,6 +10,7 @@ bluetooth
 bluez-tools
 branding-ubuntu
 build-essential
+chafa
 cmake
 cmatrix
 containerd.io
@@ -25,10 +26,12 @@ docker-compose-plugin
 doppler
 droidcam-client
 fd-find
+feh
 ffmpeg
 figlet
 flatpak
 fonts-noto
+fzf
 gawk
 gcc-12
 gettext
@@ -52,6 +55,7 @@ htop
 hyphen-en-us
 ifstat
 imagemagick
+imv
 jq
 kde-plasma-desktop
 keybase
@@ -124,6 +128,7 @@ simple-scan
 simplescreenrecorder
 slick-greeter
 smart-connect
+sxiv
 sysfsutils
 thunderbird
 thunderbird-gnome-support
@@ -133,6 +138,7 @@ tig
 totem
 transmission-gtk
 ubuntu-restricted-extras
+variety
 vault
 vino
 virtualbox-7.0
