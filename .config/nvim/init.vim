@@ -29,7 +29,7 @@ set shiftwidth=4
 set smarttab
 set title
 set bg=light
-set go=a
+if exists("set go=aguioptions") | set go=a | endif
 set mouse=a
 set nohlsearch
 set clipboard+=unnamedplus
