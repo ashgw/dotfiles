@@ -39,11 +39,6 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
 
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="./images/tux.png" alt="Image 1" style="width: 100%;">
-  </div>
-
-
- <div style="flex: 1; min-width: 200px; margin: 5px;">
     <img src="./images/snow.png" alt="Image 1" style="width: 100%;">
   </div>
 
@@ -54,11 +49,6 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
  <div style="flex: 1; min-width: 200px; margin: 5px;">
     <img src="./images/py.png" alt="Image 1" style="width: 100%;">
   </div>
-
-<div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="https://github.com/user-attachments/assets/c522ec42-f751-4c32-ae6a-e5f83d4d40c3" alt="Image 1" style="width: 100%;">
-  </div>
-
 
 <div style="flex: 1; min-width: 200px; margin: 5px;">
     <img src="./images/black0.png" alt="Image 1" style="width: 100%;">
@@ -79,12 +69,6 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
   </div>
  <div style="flex: 1; min-width: 200px; margin: 5px;">
     <img src="./images/black-1.png" alt="Image 1" style="width: 100%;">
-  </div>
-
-
-
- <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="./images/vscode-dark.png" alt="Image 1" style="width: 100%;">
   </div>
 
 
