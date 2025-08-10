@@ -1,0 +1,4 @@
+deb http://dell.archive.canonical.com/ jammy somerville
+# deb-src http://dell.archive.canonical.com/ focal somerville
+deb http://dell.archive.canonical.com/ jammy somerville-olly-adl
+# deb-src http://dell.archive.canonical.com/ focal somerville-olly-adl

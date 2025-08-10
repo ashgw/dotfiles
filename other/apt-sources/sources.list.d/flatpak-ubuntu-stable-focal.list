@@ -1,0 +1,2 @@
+# deb http://ppa.launchpad.net/flatpak/stable/ubuntu jammy main # disabled on upgrade to jammy
+# deb-src http://ppa.launchpad.net/flatpak/stable/ubuntu focal main

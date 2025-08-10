@@ -1,0 +1,2 @@
+# deb http://ppa.launchpad.net/fingerprint/fingerprint-gui/ubuntu jammy main # disabled on upgrade to jammy
+# deb-src http://ppa.launchpad.net/fingerprint/fingerprint-gui/ubuntu focal main
