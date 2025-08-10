@@ -1,8 +1,8 @@
-name: Sync Submodules Daily
+name: Sync Submodules 4 times a day
 
 on:
   schedule:
-    - cron: '0 15 * * *'  # runs every day at 15:00 UTC
+    - cron: '0 */6 * * *'  # runs every 6 hours UTC
   workflow_dispatch:
 
 jobs:
