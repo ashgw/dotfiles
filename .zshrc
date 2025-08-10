@@ -33,7 +33,7 @@ export LANG=en_US.UTF-8
 if [[ -n $SSH_CONNECTION ]]; then
    export EDITOR='nvim'
  else
-   export EDITOR='code'
+   export EDITOR='nvim' # also NeoVim
 fi
 
 # Disable GPG GUI prompts inside SSH.
