@@ -88,6 +88,7 @@ libxcb1-dev
 libxcb-render0-dev
 libxcb-shape0-dev
 libxcb-xfixes0-dev
+lightdm
 linux-generic
 linux-headers-6.8.0-51-generic
 linux-headers-generic
@@ -121,6 +122,7 @@ shotwell
 signal-desktop
 simple-scan
 simplescreenrecorder
+slick-greeter
 smart-connect
 sysfsutils
 thunderbird
@@ -138,6 +140,7 @@ vlc
 w3m
 wireshark
 wl-clipboard
+wmctrl
 xbindkeys
 xclip
 xdotool
