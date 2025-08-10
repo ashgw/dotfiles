@@ -26,6 +26,13 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
     <img src="./images/desktop.jpg" alt="Image 1" style="width: 100%;">
   </div>
 
+  
+ <div style="flex: 1; min-width: 200px; margin: 5px;">
+    <img src="https://github.com/user-attachments/assets/850e2bd5-347a-480e-b810-0421e4287d5a"  alt="Image 1" style="width: 100%;">
+  </div>
+
+
+
  <div style="flex: 1; min-width: 200px; margin: 5px;">
     <img src="https://github.com/user-attachments/assets/00cb1221-8240-4a1f-bb1e-c3e7e282bb87" alt="Image 1" style="width: 100%;">
   </div>
