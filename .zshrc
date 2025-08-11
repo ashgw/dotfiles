@@ -232,3 +232,6 @@ export FZF_DEFAULT_OPTS=$'
     fi
   "
 '
+
+# functions section (checkout my zshfuncs repo)
+source ~/zshfuncs/entrypoint.zsh
