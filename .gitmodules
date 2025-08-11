@@ -1,6 +1,6 @@
-[submodule ".fonts"]
-    path = .fonts
-  	url = https://github.com/ashgw/.fonts.git
+[submodule "fonts"]
+    path = .local/share/fonts
+  	url = https://github.com/ashgw/fonts.git
 
 [submodule "zshfuncs"]
     path = zshfuncs
