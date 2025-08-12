@@ -28,6 +28,7 @@ black==24.10.0
 blinker==1.9.0
 boto==2.49.0
 Brlapi==0.8.3
+Brotli==1.1.0
 build==1.2.2.post1
 cachetools==5.5.2
 certifi==2020.6.20
@@ -83,6 +84,7 @@ filetype==1.2.0
 flatbuffers==25.2.10
 flit==3.12.0
 flit_core==3.12.0
+fonttools==4.59.0
 frozenlist==1.2.0
 fsspec==2025.3.2
 furo==2024.8.6
@@ -429,4 +431,5 @@ xkit==0.0.0
 xxhash==3.5.0
 yarl==1.19.0
 zipp==3.21.0
+zopfli==0.2.3.post1
 zstandard==0.23.0

@@ -230,9 +230,12 @@ fist						install
 flatpak						install
 fontconfig					install
 fontconfig-config				install
+fontforge					install
+fontforge-common				install
 fonts-arundina					install
 fonts-beng					install
 fonts-beng-extra				install
+fonts-cantarell					install
 fonts-dejavu					install
 fonts-dejavu-core				install
 fonts-dejavu-extra				install
@@ -247,6 +250,7 @@ fonts-gujr-extra				install
 fonts-guru					install
 fonts-guru-extra				install
 fonts-hack					install
+fonts-inconsolata				install
 fonts-indic					install
 fonts-kacst					install
 fonts-kacst-one					install
@@ -1029,6 +1033,7 @@ libfontconfig1:amd64				install
 libfontconfig1-dev:amd64			install
 libfontembed1:amd64				install
 libfontenc1:amd64				install
+libfontforge4:amd64				install
 libfprint-2-2:amd64				install
 libfprint-2-tod1:amd64				install
 libfprint-2-tod1-goodix				install
@@ -1954,6 +1959,7 @@ libspeechd2:amd64				install
 libspeex1:amd64					install
 libspeexdsp1:amd64				install
 libsphinxbase3:amd64				install
+libspiro1:amd64					install
 libsqlite3-0:amd64				install
 libsquashfuse0:amd64				install
 libsratom-0-0:amd64				install
@@ -2039,6 +2045,7 @@ libudfread0:amd64				install
 libudisks2-0:amd64				install
 libumfpack5:amd64				install
 libunicode-linebreak-perl			install
+libuninameslist1:amd64				install
 libunistring2:amd64				install
 libunistring2:i386				install
 libunity-protocol-private0:amd64		install
@@ -2627,6 +2634,7 @@ python3-distro-info				install
 python3-distupgrade				install
 python3-distutils				install
 python3-fasteners				install
+python3-fontforge:amd64				install
 python3-frozenlist				install
 python3-fuse					install
 python3-future					install

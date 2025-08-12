@@ -31,6 +31,7 @@ feh
 ffmpeg
 figlet
 flatpak
+fontforge
 fonts-noto
 fzf
 gawk
@@ -116,6 +117,7 @@ picom
 playerctl
 proton-vpn-gnome-desktop
 protonvpn-stable-release
+python3-fontforge
 python3-openssl
 python3-pip
 python3-psutil
