@@ -19,63 +19,99 @@ if ! command -v zsh &> /dev/null; then
   fi
 fi
 
-# nix setup
-if ! command -v xz &> /dev/null; then
-  if [ -f "/etc/debian_version" ]; then
-    echo "xz not found. Installing xz-utils on Debian..."
-    sudo apt update
-    sudo apt -y install xz-utils
-    echo "Also installing build essentials..:"
-    sudo apt  -y install build-essential
-  else
-    echo -e "${RED}xz not found, and you are not on Debian, install it with your package manager to continue. Exiting. ${ENDCOLOR}"
-    exit 1
+# Nixsetp
+GREEN="\e[1;32m"; CYAN="\e[36m"; RED="\e[31m"; END="\e[0m"
+say(){ printf "%b%s%b\n" "$CYAN" "$*" "$END"; }
+ok(){  printf "%b%s%b\n" "$GREEN" "$*" "$END"; }
+err(){ printf "%b%s%b\n" "$RED" "$*" "$END" >&2; }
+
+need_debian_pkg(){
+  local pkg="$1"
+  if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+    sudo apt-get update -y
+    sudo apt-get install -y "$pkg"
   fi
-fi
-echo -e "${GREEN}Installing nix.. ${ENDCOLOR}"
+}
 
-sh <(curl -L https://nixos.org/nix/install) --no-daemon
-. ~/.nix-profile/etc/profile.d/nix.sh
+have(){ command -v "$1" >/dev/null 2>&1; }
 
-echo -e "${GREEN}Installing all the necessary packages.. ${ENDCOLOR}"
+ensure_nix(){
+  if have nix; then
+    ok "Nix already installed"
+  else
+    if [[ -f /etc/debian_version ]]; then
+      say "Installing prereqs for Nix"
+      need_debian_pkg xz-utils
+      need_debian_pkg ca-certificates
+      need_debian_pkg curl
+      need_debian_pkg build-essential
+    fi
+    say "Installing Nix (single user)"
+    sh <(curl -L https://nixos.org/nix/install) --no-daemon
+  fi
 
-# chad packages installation
-nix-env -iA nixpkgs.git \
-    nixpkgs.curl \
-    nixpkgs.eza \
-    nixpkgs.wget \
-    nixpkgs.neovim \
-    nixpkgs.tmux \
-    nixpkgs.bat \
-    nixpkgs.python3 \
-    nixpkgs.openssh \
-    nixpkgs.neofetch \
-    nixpkgs.tree \
-    nixpkgs.htop \
-    nixpkgs.fd \
-    nixpkgs.xclip \
-    nixpkgs.polybar \
-    nixpkgs.feh \
-    nixpkgs.man \
-    nixpkgs.bruno \
-    nixpkgs.i3 \
-    nixpkgs.picom \
-    nixpkgs.pango \
-    nixpkgs.ripgrep \
-    nixpkgs.direnv \
-    nixpkgs.librewolf \
-    nixpkgs.chromium \
-    nixpkgs.virtualbox \
-    nixpkgs.wireshark \
-    nixpkgs.nmap \
-    nixpkgs.fzf \
-    nixpkgs.pandoc \
-    nixpkgs.zathura \
-    nixpkgs.starship \
-    nixpkgs.tor \
-    nixpkgs.tor-browser \
-    nixpkgs.btop
-echo -e "${CYAN}The whole 9 setup.. ${ENDCOLOR}"
+  if [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
+    # shellcheck disable=SC1091
+    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+  fi
+
+  mkdir -p "$HOME/.config/nix"
+  if ! grep -q 'experimental-features' "$HOME/.config/nix/nix.conf" 2>/dev/null; then
+    echo 'experimental-features = nix-command flakes' >> "$HOME/.config/nix/nix.conf"
+  fi
+  export NIXPKGS_ALLOW_UNFREE=1
+}
+
+ensure_pkg(){
+  local cmd="$1" nixAttr="$2"
+  if have "$cmd"; then
+    ok "$cmd present ($(command -v "$cmd"))"
+  else
+    say "Installing $cmd from Nix ($nixAttr)"
+    nix profile install "nixpkgs#$nixAttr"
+  fi
+}
+
+ensure_nix
+
+say "Installing Nix packages..."
+ensure_pkg git git
+ensure_pkg curl curl
+ensure_pkg eza eza
+ensure_pkg wget wget
+ensure_pkg nvim neovim
+ensure_pkg tmux tmux
+ensure_pkg bat bat
+ensure_pkg python3 python3
+ensure_pkg ssh openssh
+ensure_pkg neofetch neofetch
+ensure_pkg tree tree
+ensure_pkg htop htop
+ensure_pkg fd fd
+ensure_pkg xclip xclip
+ensure_pkg polybar polybar
+ensure_pkg feh feh
+ensure_pkg man man
+ensure_pkg bruno bruno
+ensure_pkg i3 i3
+ensure_pkg picom picom
+ensure_pkg pango-querymodules pango
+ensure_pkg rg ripgrep
+ensure_pkg direnv direnv
+ensure_pkg librewolf librewolf
+ensure_pkg chromium chromium
+ensure_pkg virtualbox virtualbox
+ensure_pkg wireshark wireshark
+ensure_pkg nmap nmap
+ensure_pkg fzf fzf
+ensure_pkg pandoc pandoc
+ensure_pkg zathura zathura
+ensure_pkg starship starship
+ensure_pkg tor tor
+ensure_pkg tor-browser tor-browser-bundle-bin
+ensure_pkg btop btop
+
+ok "Nix package installation complete"
 
 mkdir work trash personal
 
