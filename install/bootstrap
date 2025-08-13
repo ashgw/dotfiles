@@ -61,7 +61,6 @@ ensure_nix(){
   fi
   export NIXPKGS_ALLOW_UNFREE=1
 }
-
 ensure_pkg(){
   local cmd="$1" nixAttr="$2"
   if have "$cmd"; then

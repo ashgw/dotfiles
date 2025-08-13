@@ -405,9 +405,10 @@ nnoremap <silent> <leader>bp :BufferLinePick<CR>
 " Quick list of buffers, then type the number
 nnoremap <leader>bl :ls<CR>:b<Space>
 
-"""
-nnoremap <silent> <C-x> :bd<CR>
-nnoremap <leader>bl :ls<CR>:b<Space>
+" Make <C-x> quit without saving in all modes
+inoremap <silent> <C-x> <Esc>:q!<CR>
+vnoremap <silent> <C-x> <Esc>:q!<CR>
+nnoremap <silent> <C-x> :q!<CR>
 """
 " Absolute file path
 nnoremap <leader>fa :echo expand('%:p')<CR>
