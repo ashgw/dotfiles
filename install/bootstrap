@@ -231,23 +231,7 @@ PY
     fi
   fi
 
-  # Homebrew (if present)
-  if have brew; then
-    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/brew/taps.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
-      xargs -a "$f" -r brew tap || true
-      rm -f "$f"
-    fi
-    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/brew/leaves.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
-      xargs -a "$f" -r brew install || true
-      rm -f "$f"
-    fi
-    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/brew/casks.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
-      xargs -a "$f" -r brew install --cask || true
-      rm -f "$f"
-    fi
-  fi
-
-  # Nix profile installs (best-effort)
+    # Nix profile installs (best-effort)
   if have nix; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/nix-profile.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       while read -r name; do
