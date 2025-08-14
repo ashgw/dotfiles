@@ -42,6 +42,14 @@ nnoremap c "_c
 filetype plugin on
 syntax on
 
+" ================================
+" ==== Python host for Neovim since I have many binaries ====
+if executable('/usr/bin/python3')
+  let g:python3_host_prog = '/usr/bin/python3'
+endif
+" ================================
+
+
 " ==========================================================
 "                      PLUGIN SECTION
 " ==========================================================
