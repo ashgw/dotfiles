@@ -3,15 +3,13 @@
 
 set -Eeuo pipefail
 
-# Colors
 OK="$(tput setaf 2)✓$(tput sgr0)"
 ERROR="$(tput setaf 1)✗$(tput sgr0)"
 NOTE="$(tput setaf 3)!$(tput sgr0)"
 INFO="$(tput setaf 4)i$(tput sgr0)"
 
-# Guardrails
 if [[ $EUID -eq 0 ]]; then
-  echo "${ERROR} Do not run as root. The script uses sudo when needed."
+  echo "${ERROR} Do not run as root. It will sudo when needed."
   exit 1
 fi
 if ! grep -q 'ID=debian' /etc/os-release; then
@@ -26,26 +24,19 @@ if [[ "$VERSION_CODENAME" != "trixie" && "$VERSION_CODENAME" != "sid" && "$VERSI
   [[ $REPLY =~ ^[Yy]$ ]] || exit 1
 fi
 
-# Logging
 mkdir -p Install-Logs
 LOG="Install-Logs/hyprland-install-$(date +%Y%m%d-%H%M%S).log"
-touch "$LOG"
 echo "== $(date -Iseconds) starting ==" | tee -a "$LOG"
 
-# Trap
 trap 'echo "${ERROR} Failed on line $LINENO. See $LOG" | tee -a "$LOG"' ERR
 
-# Noninteractive apt
 export DEBIAN_FRONTEND=noninteractive
 export APT_LISTCHANGES_FRONTEND=none
 
-# Helpers
 pkg_installed() { dpkg-query -W -f='${Status}\n' "$1" 2>/dev/null | grep -q "install ok installed"; }
+pkg_available() { apt-cache policy "$1" 2>/dev/null | grep -q "Candidate:" && ! apt-cache policy "$1" | grep -q "(none)"; }
 
-need_pkgs(){
-  local p
-  for p in "$@"; do pkg_installed "$p" || echo "$p"; done
-}
+need_pkgs(){ local p; for p in "$@"; do pkg_installed "$p" || echo "$p"; done; }
 
 wait_for_apt_lock(){
   local tries=120
@@ -58,10 +49,7 @@ wait_for_apt_lock(){
   done
 }
 
-apt_safe(){
-  wait_for_apt_lock
-  sudo -E "$@" 2>&1 | tee -a "$LOG"
-}
+apt_safe(){ wait_for_apt_lock; sudo -E "$@" 2>&1 | tee -a "$LOG"; }
 
 apt_install_missing(){
   local missing=()
@@ -69,7 +57,6 @@ apt_install_missing(){
   if ((${#missing[@]})); then
     echo "${INFO} Installing: ${missing[*]}" | tee -a "$LOG"
     apt_safe apt-get update
-    # finish partial configurations first
     sudo dpkg --configure -a 2>&1 | tee -a "$LOG" || true
     apt_safe apt-get -o Dpkg::Options::=--force-confnew -y install "${missing[@]}"
     echo "${OK} Packages installed" | tee -a "$LOG"
@@ -78,26 +65,38 @@ apt_install_missing(){
   fi
 }
 
-# Stop unattended-upgrades temporarily to avoid lock fights
+apt_install_optional(){
+  local avail=()
+  local p
+  for p in "$@"; do
+    if pkg_available "$p"; then
+      pkg_installed "$p" || avail+=("$p")
+    else
+      echo "${NOTE} Optional package not in repo: $p" | tee -a "$LOG"
+    fi
+  done
+  ((${#avail[@]})) && apt_install_missing "${avail[@]}" || true
+}
+
 if systemctl is-enabled --quiet unattended-upgrades 2>/dev/null; then
   echo "${NOTE} Pausing unattended-upgrades during install" | tee -a "$LOG"
   sudo systemctl stop unattended-upgrades 2>/dev/null || true
 fi
 
-# Build deps
 BUILD_DEPS=(
   build-essential cmake cmake-extras curl git pkg-config
   libcairo2-dev libdisplay-info-dev libdrm-dev libegl-dev libegl1-mesa-dev
   libgbm-dev libgles2-mesa-dev libglvnd-dev libinput-dev libliftoff-dev
   libpango1.0-dev libpixman-1-dev libseat-dev libsystemd-dev libtomlplusplus-dev
-  libvulkan-dev libwayland-dev wayland-protocols hyprland-protocols
+  libvulkan-dev libwayland-dev wayland-protocols
   libxcb-composite0-dev libxcb-cursor-dev libxcb-dri3-dev libxcb-ewmh-dev
   libxcb-icccm4-dev libxcb-present-dev libxcb-render-util0-dev
   libxcb-xfixes0-dev libxcb-xinput-dev libxkbcommon-dev libxkbcommon-x11-dev
   meson ninja-build xwayland
 )
+# This one is missing on your box. Treat as optional.
+OPTIONAL_BUILD_DEPS=( hyprland-protocols )
 
-# Runtime plus tools your config binds to
 RUNTIME_DEPS=(
   pipewire wireplumber
   wl-clipboard grim slurp
@@ -105,10 +104,8 @@ RUNTIME_DEPS=(
   polkit-kde-agent-1
   kitty wofi thunar
 )
-
 ESSENTIAL_TOOLS=( waybar wlogout brightnessctl pavucontrol playerctl xdg-user-dirs )
 
-# Install choice
 echo "${INFO} Install type?
 1) Minimal
 2) Standard" | tee -a "$LOG"
@@ -117,6 +114,8 @@ read -p "Your choice [1-2]: " INSTALL_TYPE; echo
 
 echo "${INFO} Ensuring build deps..." | tee -a "$LOG"
 apt_install_missing "${BUILD_DEPS[@]}"
+echo "${INFO} Trying optional build deps..." | tee -a "$LOG"
+apt_install_optional "${OPTIONAL_BUILD_DEPS[@]}"
 echo "${INFO} Ensuring runtime deps..." | tee -a "$LOG"
 apt_install_missing "${RUNTIME_DEPS[@]}"
 if [[ "$INSTALL_TYPE" == "2" ]]; then
@@ -124,7 +123,6 @@ if [[ "$INSTALL_TYPE" == "2" ]]; then
   apt_install_missing "${ESSENTIAL_TOOLS[@]}"
 fi
 
-# NVIDIA optional
 if lspci | grep -qi nvidia; then
   echo "${INFO} NVIDIA GPU detected." | tee -a "$LOG"
   read -p "Configure NVIDIA Wayland support now? [y/N] " -n 1 -r; echo
@@ -148,7 +146,6 @@ EOF
   fi
 fi
 
-# Build or reuse Hyprland
 HYPRLAND_VERSION="v0.49.0"
 current=""
 if command -v Hyprland >/dev/null 2>&1; then
@@ -177,7 +174,6 @@ else
   echo "${OK} Hyprland $current already installed - skipping build" | tee -a "$LOG"
 fi
 
-# Session entry
 HYPR_BIN="$(command -v Hyprland || true)"
 if [[ -n "$HYPR_BIN" ]]; then
   if [[ ! -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
@@ -195,7 +191,6 @@ EOF
   fi
 fi
 
-# seatd vs logind
 if systemctl is-active --quiet systemd-logind.service; then
   if systemctl is-enabled --quiet seatd.service 2>/dev/null; then
     echo "${NOTE} Disabling seatd because logind is active" | tee -a "$LOG"
@@ -215,24 +210,19 @@ else
   fi
 fi
 
-# XDG user dirs
 if command -v xdg-user-dirs-update >/dev/null 2>&1; then
   xdg-user-dirs-update 2>&1 | tee -a "$LOG" || true
 fi
 
-# Minimal safe config
 read -p "Write minimal Hyprland config to ~/.config/hypr/hyprland.conf? [Y/n] " -n 1 -r; echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
   mkdir -p ~/.config/hypr
   CONFIG_PATH=~/.config/hypr/hyprland.conf
-  if [[ -f "$CONFIG_PATH" ]]; then
-    cp -a "$CONFIG_PATH" "$CONFIG_PATH.backup.$(date +%Y%m%d%H%M%S)"
-  fi
+  [[ -f "$CONFIG_PATH" ]] && cp -a "$CONFIG_PATH" "$CONFIG_PATH.backup.$(date +%Y%m%d%H%M%S)"
   cat > "$CONFIG_PATH" <<'EOF'
 monitor=,preferred,auto,auto
 env = XCURSOR_SIZE,24
 
-# Try KDE agent, then GNOME agent path, whichever exists
 exec-once = sh -lc '[ -x /usr/lib/polkit-kde-authentication-agent-1 ] && /usr/lib/polkit-kde-authentication-agent-1 || true'
 exec-once = sh -lc '[ -x /usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1 ] && /usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1 || true'
 
@@ -240,40 +230,11 @@ exec-once = waybar
 exec-once = kitty
 exec-once = xdg-user-dirs-update
 
-input {
-  kb_layout = us
-  follow_mouse = 1
-  touchpad { natural_scroll = false }
-  sensitivity = 0
-}
+input { kb_layout = us; follow_mouse = 1; touchpad { natural_scroll = false }; sensitivity = 0 }
 
-general {
-  gaps_in = 5
-  gaps_out = 10
-  border_size = 2
-  col.active_border = rgba(33ccffee)
-  col.inactive_border = rgba(595959aa)
-  layout = dwindle
-}
-
-decoration {
-  rounding = 5
-  blur { enabled = true; size = 3; passes = 1 }
-  drop_shadow = true
-  shadow_range = 4
-  shadow_render_power = 3
-}
-
-animations {
-  enabled = true
-  bezier = myBezier, 0.05, 0.9, 0.1, 1.05
-  animation = windows, 1, 7, myBezier
-  animation = windowsOut, 1, 7, default, popin 80%
-  animation = border, 1, 10, default
-  animation = fade, 1, 7, default
-  animation = workspaces, 1, 6, default
-}
-
+general { gaps_in = 5; gaps_out = 10; border_size = 2; col.active_border = rgba(33ccffee); col.inactive_border = rgba(595959aa); layout = dwindle }
+decoration { rounding = 5; blur { enabled = true; size = 3; passes = 1 }; drop_shadow = true; shadow_range = 4; shadow_render_power = 3 }
+animations { enabled = true; bezier = myBezier, 0.05, 0.9, 0.1, 1.05; animation = windows, 1, 7, myBezier; animation = windowsOut, 1, 7, default, popin 80%; animation = border, 1, 10, default; animation = fade, 1, 7, default; animation = workspaces, 1, 6, default }
 dwindle { pseudotile = true; preserve_split = true }
 master { new_is_master = true }
 gestures { workspace_swipe = false }
@@ -324,7 +285,6 @@ EOF
   echo "${OK} Wrote ~/.config/hypr/hyprland.conf" | tee -a "$LOG"
 fi
 
-# Resume unattended-upgrades
 if systemctl is-enabled --quiet unattended-upgrades 2>/dev/null; then
   sudo systemctl start unattended-upgrades 2>/dev/null || true
 fi
@@ -332,7 +292,6 @@ fi
 echo "${OK} Done. Full log at $LOG" | tee -a "$LOG"
 echo "Choose Hyprland in your greeter, or from a TTY run: Hyprland" | tee -a "$LOG"
 
-# Optional reboot
 read -p "Reboot now? [y/N] " -n 1 -r; echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo "Rebooting..." | tee -a "$LOG"
