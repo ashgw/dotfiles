@@ -1,12 +1,21 @@
 #!/bin/bash
+set -euo pipefail
+
 GO_VERSION=1.19
-INSTALL_DIR=$HOME
-curl -O -fsSL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz
-tar xvf go$GO_VERSION.linux-amd64.tar.gz
-sudo mv go $INSTALL_DIR
-rm -rf go$GO_VERSION.linux-amd64.tar.gz
-sudo chown -R root:root  $INSTALL_DIR/go
-echo '#go' >> ~/.zshrc
-echo 'export PATH=$PATH:/$HOME/go/bin' >> ~/.zshrc
-# source later 
-#. ~/.zshrc
+ARCH=linux-amd64
+TARBALL="go${GO_VERSION}.${ARCH}.tar.gz"
+
+curl -fsSL -o "$TARBALL" "https://golang.org/dl/${TARBALL}"
+
+# Remove any old Go in /usr/local and install fresh
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf "$TARBALL"
+rm -f "$TARBALL"
+
+# Add Go to PATH and set GOPATH for the user
+if ! grep -q "/usr/local/go/bin" "$HOME/.zshrc" 2>/dev/null; then
+	echo '# go' >> "$HOME/.zshrc"
+	echo 'export PATH="$PATH:/usr/local/go/bin"' >> "$HOME/.zshrc"
+	echo 'export GOPATH="$HOME/go"' >> "$HOME/.zshrc"
+	echo 'export PATH="$PATH:$GOPATH/bin"' >> "$HOME/.zshrc"
+fi

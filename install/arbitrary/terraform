@@ -1,18 +1,27 @@
-#!/bin/zsh
+#!/bin/bash
 
-source ~/.zshrc
-reload
-a update
-i -y gnupg software-properties-common && wget -O- https://apt.releases.hashicorp.com/gpg | \
-gpg --dearmor | \
-sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null && gpg --no-default-keyring \
---keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg \
---fingerprint
+set -euo pipefail
 
-a update
-i terraform
+# Ensure dependencies
+sudo apt-get update -y
+sudo apt-get install -y gnupg curl software-properties-common
 
-# terraform version manager
-git clone --depth=1 https://github.com/tfutils/tfenv.git ~/.tfenv
-echo 'export PATH="$HOME/.tfenv/bin:$PATH"' >> ~/.zshrc
-reload
+# Add HashiCorp GPG key and repo (idempotent)
+if [ ! -f /usr/share/keyrings/hashicorp-archive-keyring.gpg ]; then
+	curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg >/dev/null
+fi
+
+if ! grep -Rqs "^deb .*apt.releases.hashicorp.com" /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then
+	echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(. /etc/os-release && echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
+fi
+
+sudo apt-get update -y
+sudo apt-get install -y terraform
+
+# terraform version manager (optional)
+if [ ! -d "$HOME/.tfenv" ]; then
+	git clone --depth=1 https://github.com/tfutils/tfenv.git "$HOME/.tfenv"
+	if ! grep -q 'export PATH="$HOME/.tfenv/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null; then
+		echo 'export PATH="$HOME/.tfenv/bin:$PATH"' >> "$HOME/.zshrc"
+	fi
+fi

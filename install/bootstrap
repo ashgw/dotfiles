@@ -15,6 +15,7 @@ as_root(){ if [[ $EUID -ne 0 ]]; then sudo "$@"; else "$@"; fi; }
 
 prompt_yes_no(){ # $1=message, return 0 for yes, 1 for no
   local ans
+  if [[ "${BOOTSTRAP_ASSUME_YES:-0}" == "1" ]]; then return 0; fi
   read -r -p "$1 [y/N]: " ans
   [[ "$ans" =~ ^[Yy]$ ]]
 }
@@ -48,6 +49,9 @@ ensure_nix(){
   export NIXPKGS_ALLOW_UNFREE=1
 }
 
+# Avoid repeated apt-get update calls inside ensure_tool
+APT_UPDATED=0
+
 ensure_tool(){
   # prefer nix, fallback apt, do nothing if already present
   local cmd="$1" nix_attr="${2:-}" apt_pkg="${3:-}"
@@ -59,7 +63,7 @@ ensure_tool(){
   fi
   if is_debian && [[ -n "$apt_pkg" ]]; then
     say "apt install $apt_pkg"
-    as_root apt-get update -y
+    if [[ ${APT_UPDATED} -eq 0 ]]; then as_root apt-get update -y || true; APT_UPDATED=1; fi
     as_root apt-get install -y "$apt_pkg" || true
     have "$cmd" && { ok "$cmd installed via apt"; return 0; }
   fi
@@ -169,7 +173,7 @@ restore_other_sets(){
       awk '{print $1}' "$f" | xargs -r -n1 flatpak install -y --system || true
       rm -f "$f"
     fi
-    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/flatpak-user.txt" -o "$f" 2>/div/null && [[ -s "$f" ]]; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/flatpak-user.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       awk '{print $1}' "$f" | xargs -r -n1 flatpak install -y --user || true
       rm -f "$f"
     fi
@@ -207,6 +211,49 @@ PY
   if have pnpm; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/pnpm-global.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       xargs -a "$f" -r pnpm add -g || true
+      rm -f "$f"
+    fi
+  fi
+
+  # Cargo crates
+  if have cargo; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/cargo-crates.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      xargs -a "$f" -r -n1 cargo install || true
+      rm -f "$f"
+    fi
+  fi
+
+  # Rustup toolchains
+  if have rustup; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/rustup-toolchains.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      awk '{print $1}' "$f" | xargs -r -n1 rustup toolchain install || true
+      rm -f "$f"
+    fi
+  fi
+
+  # Homebrew (if present)
+  if have brew; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/brew/taps.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      xargs -a "$f" -r brew tap || true
+      rm -f "$f"
+    fi
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/brew/leaves.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      xargs -a "$f" -r brew install || true
+      rm -f "$f"
+    fi
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/brew/casks.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      xargs -a "$f" -r brew install --cask || true
+      rm -f "$f"
+    fi
+  fi
+
+  # Nix profile installs (best-effort)
+  if have nix; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/nix-profile.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      while read -r name; do
+        [[ -z "$name" ]] && continue
+        nix profile install "nixpkgs#${name}" || true
+      done < "$f"
       rm -f "$f"
     fi
   fi
