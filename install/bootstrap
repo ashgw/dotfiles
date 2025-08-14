@@ -306,13 +306,8 @@ ensure_tool man man-db man-db
 ensure_tool python3 python3 python3
 ensure_tool ssh openssh openssh-client
 ensure_tool zathura zathura zathura
-ensure_tool chromium chromium chromium
-ensure_tool librewolf librewolf ""       # nix only
-ensure_tool virtualbox virtualbox ""     # nix only unless you handle kernel modules
-ensure_tool wireshark wireshark wireshark
 ensure_tool nmap nmap nmap
 ensure_tool tor tor tor
-ensure_tool tor-browser tor-browser-bundle-bin ""  # nix only
 ensure_tool feh feh feh
 ensure_tool picom picom picom
 ensure_tool i3 i3 i3-wm
