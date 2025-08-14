@@ -43,12 +43,11 @@ filetype plugin on
 syntax on
 
 " ================================
-" ==== Python host for Neovim since I have many binaries ====
+" ==== Python host for Neovim ====
 if executable('/usr/bin/python3')
   let g:python3_host_prog = '/usr/bin/python3'
 endif
 " ================================
-
 
 " ==========================================================
 "                      PLUGIN SECTION
@@ -381,10 +380,15 @@ nnoremap <C-s> :update<CR>
 inoremap <C-s> <C-o>:update<CR>
 vnoremap <C-s> <Esc>:update<CR>gv
 
-" 4) Ctrl+Q = Suspend to shell (quit with :q! manually)
-nnoremap <C-q> :stop<CR>
-inoremap <C-q> <C-o>:stop<CR>
-vnoremap <C-q> <Esc>:stop<CR>
+" 4) Ctrl+P = Suspend to shell (background)
+nnoremap <C-p> :stop<CR>
+inoremap <C-p> <C-o>:stop<CR>
+vnoremap <C-p> <Esc>:stop<CR>
+
+" 5) Ctrl+Q = Quit without saving
+nnoremap <C-q> :q!<CR>
+inoremap <C-q> <C-o>:q!<CR>
+vnoremap <C-q> <Esc>:q!<CR>
 
 " =====
 " Buffer navigation
@@ -413,10 +417,10 @@ nnoremap <silent> <leader>bp :BufferLinePick<CR>
 " Quick list of buffers, then type the number
 nnoremap <leader>bl :ls<CR>:b<Space>
 
-" Make <C-x> quit without saving in all modes
-inoremap <silent> <C-x> <Esc>:q!<CR>
-vnoremap <silent> <C-x> <Esc>:q!<CR>
-nnoremap <silent> <C-x> :q!<CR>
+" Make <C-x> close current buffer in all modes
+inoremap <silent> <C-x> <C-o>:bd<CR>
+vnoremap <silent> <C-x> <Esc>:bd<CR>
+nnoremap <silent> <C-x> :bd<CR>
 """
 " Absolute file path
 nnoremap <leader>fa :echo expand('%:p')<CR>
@@ -538,7 +542,7 @@ autocmd BufNewFile,BufRead *.tsx,*.jsx set filetype=typescriptreact
 autocmd BufWritePre * let currPos = getpos(".")
 autocmd BufWritePre * %s/\s\+$//e
 autocmd BufWritePre * %s/\n\+\%$//e
-autocmd BufWritePre *.[ch] %s/\%$/\r/e
+autocmd BufWritePre * %s/\%$/\r/e
 autocmd BufWritePre *neomutt* %s/^--$/-- /e
 autocmd BufWritePre * cal cursor(currPos[1], currPos[2])
 
@@ -573,3 +577,4 @@ nnoremap <leader>h :call ToggleHiddenAll()<CR>
 "                  MISC VISUAL SETTINGS
 " ==========================================================
 hi normal guibg=NONE
+
