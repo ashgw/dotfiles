@@ -299,6 +299,10 @@ else
   ok "obsidian present"
 fi
 
+# TPM - only if missing
+[[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+
+
 # ensure OMZ custom plugins exist
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 ZCUST="$ZSH_CUSTOM/plugins"
@@ -344,10 +348,6 @@ else
   fi
 fi
 
-
-
-
-
 # Oh My Zsh - install if missing, no updates if present
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
   say "installing oh-my-zsh"
@@ -355,8 +355,7 @@ if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
 else
   ok "oh-my-zsh present"
 fi
-# TPM - only if missing
-[[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+
 
 # Optional GNOME extras and keybindings
 is_gnome_session(){ [[ "${XDG_CURRENT_DESKTOP:-}${XDG_SESSION_DESKTOP:-}" =~ GNOME ]] || pgrep -x gnome-shell >/dev/null 2>&1; }
