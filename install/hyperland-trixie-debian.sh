@@ -3,18 +3,21 @@ set -euo pipefail
 
 # Minimal Hyprland installer for Debian
 # - Trixie or Sid: install from native
-# - Bookworm: use --bookworm-backports to pull Hyprland + portal from backports
+# - Bookworm: run with --bookworm-backports to pull Hyprland + portal from backports
 # - Idempotent and safe for re-runs
 # - Defaults to systemd-logind, optional --seatd to use seatd daemon
 
 USE_BACKPORTS=0
 USE_SEATD=0
-for arg in "${@:-}"; do
-  case "$arg" in
+
+# Parse args correctly
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --bookworm-backports) USE_BACKPORTS=1 ;;
     --seatd) USE_SEATD=1 ;;
-    *) echo "[ERROR] Unknown arg: $arg"; exit 1 ;;
+    *) echo "[ERROR] Unknown arg: $1"; exit 1 ;;
   esac
+  shift
 done
 
 if [[ ${EUID:-0} -eq 0 ]]; then
@@ -53,7 +56,9 @@ case "$CODENAME" in
       echo "[INFO] Bookworm with backports requested."
     fi
     ;;
-  *) echo "[WARN] Unknown codename '$CODENAME'. Proceeding." ;;
+  *)
+    echo "[WARN] Unknown codename '$CODENAME'. Proceeding."
+    ;;
 esac
 
 # Core sets
@@ -66,7 +71,7 @@ COMMON_PACKAGES=(
   polkit-kde-agent-1
   pipewire
   wireplumber
-  # portal infra: base portal + hyprland backend + gtk fallback for file pickers
+  dbus-user-session
   xdg-desktop-portal
   xdg-desktop-portal-hyprland
   xdg-desktop-portal-gtk
@@ -78,6 +83,7 @@ EXTRAS=(
   libinput-tools
   qt5ct
   qt6ct
+  rofi-wayland
 )
 
 # Decide hyprland source
@@ -134,8 +140,7 @@ if [[ ${#TO_INSTALL_NATIVE[@]} -gt 0 ]]; then
 fi
 
 # Seat management
-# Default: use systemd-logind. Hyprland and wlroots work great with it.
-# Only switch to seatd daemon if user explicitly asked for it.
+# Default: use systemd-logind. Only switch to seatd if requested.
 if [[ $USE_SEATD -eq 1 ]]; then
   if ! is_installed_pkg seatd; then
     echo "[INFO] Installing seatd"
