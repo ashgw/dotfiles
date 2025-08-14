@@ -308,18 +308,45 @@ mkdir -p "$ZCUST"
   git clone https://github.com/zsh-users/zsh-autosuggestions "$ZCUST/zsh-autosuggestions"
 
 [[ -d "$ZCUST/zsh-syntax-highlighting" ]] || \
+
   git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZCUST/zsh-syntax-highlighting"
 
 
-# Language stacks - install if missing
-force_tool conda "conda"
-force_tool node  "node"
-force_tool bun   "bun"
-force_tool pnpm  "pnpm"
-force_tool poetry "poetry"
-force_tool go     "go"
-force_tool terraform "terraform"
-if have cargo || have rustup; then ok "rust present"; else bash <(curl -fsSL "$REPO_RAW/install/arbitrary/rust") || err "rust install failed"; fi
+ask_install() { # $1=tool name, $2=check command, $3=install command
+  if command -v "$2" >/dev/null 2>&1; then
+    ok "$1 present"
+  else
+    read -r -p "Install $1? [y/N] " ans
+    if [[ "$ans" =~ ^[Yy]$ ]]; then
+      eval "$3" || err "$1 install failed"
+    else
+      say "Skipped $1"
+    fi
+  fi
+}
+
+ask_install "conda"     conda     "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/conda\")"
+ask_install "node"      node      "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/node\")"
+ask_install "pnpm"      pnpm      "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/pnpm\")"
+ask_install "poetry"    poetry    "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/poetry\")"
+ask_install "go"        go        "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/go\")"
+ask_install "terraform" terraform "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/terraform\")"
+ask_install "bun"       bun       "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/bun\")"
+
+if have cargo || have rustup; then
+  ok "rust present"
+else
+  read -r -p "Install rust? [y/N] " ans
+  if [[ "$ans" =~ ^[Yy]$ ]]; then
+    bash <(curl -fsSL "$REPO_RAW/install/arbitrary/rust") || err "rust install failed"
+  else
+    say "Skipped rust"
+  fi
+fi
+
+
+
+
 
 # Oh My Zsh - install if missing, no updates if present
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
