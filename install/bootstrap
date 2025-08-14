@@ -292,10 +292,24 @@ ok "base tools done"
 # Obsidian forced if missing
 if ! have obsidian; then
   say "installing Obsidian"
+ export NIXPKGS_ALLOW_INSECURE=1
+ export NIXPKGS_ALLOW_UNFREE=1
   bash <(curl -fsSL "$REPO_RAW/install/proprietary/obsidian") || err "Obsidian installer failed"
 else
   ok "obsidian present"
 fi
+
+# ensure OMZ custom plugins exist
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+ZCUST="$ZSH_CUSTOM/plugins"
+mkdir -p "$ZCUST"
+
+[[ -d "$ZCUST/zsh-autosuggestions" ]] || \
+  git clone https://github.com/zsh-users/zsh-autosuggestions "$ZCUST/zsh-autosuggestions"
+
+[[ -d "$ZCUST/zsh-syntax-highlighting" ]] || \
+  git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZCUST/zsh-syntax-highlighting"
+
 
 # Language stacks - install if missing
 force_tool conda "conda"
@@ -314,13 +328,6 @@ if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
 else
   ok "oh-my-zsh present"
 fi
-
-# zsh plugins - only if missing
-ZCUST="$HOME/.oh-my-zsh/custom/plugins"
-mkdir -p "$ZCUST"
-[[ -d "$ZCUST/zsh-autosuggestions" ]] || git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZCUST/zsh-autosuggestions"
-[[ -d "$ZCUST/zsh-syntax-highlighting" ]] || git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZCUST/zsh-syntax-highlighting"
-
 # TPM - only if missing
 [[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
 
