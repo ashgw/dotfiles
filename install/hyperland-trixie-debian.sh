@@ -15,12 +15,6 @@ apt-get install -y \
   fontconfig fonts-dejavu fonts-liberation \
   xdg-user-dirs
 
-# Locales
-sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-locale-gen
-update-locale LANG=en_US.UTF-8
-
-
 apt-get install -y firmware-linux firmware-linux-nonfree firmware-misc-nonfree || true
 
 # Initialize XDG user dirs for the chosen user
