@@ -38,30 +38,6 @@ ensure_native_zsh(){
   fi
 }
 
-setup_nix_experimental() {
-    local nix_conf="$HOME/.config/nix/nix.conf"
-    local nix_dir
-    nix_dir="$(dirname "$nix_conf")"
-
-    # Ensure directory exists
-    if [ ! -d "$nix_dir" ]; then
-        mkdir -p "$nix_dir"
-    fi
-
-    # Check if the config already contains the line
-    if [ -f "$nix_conf" ] && grep -qx "experimental-features = nix-command flakes" "$nix_conf"; then
-        echo "[INFO] Nix experimental features already configured."
-    else
-        echo "experimental-features = nix-command flakes" > "$nix_conf"
-        echo "[OK] Nix experimental features enabled in $nix_conf"
-    fi
-
-    # Reload shell so changes take effect
-    exec "$SHELL" -l
-}
-
-setup_nix_experimental()
-
 ensure_nix(){
   if have nix; then ok "nix present"; else
     is_debian && { need_debian_pkg xz-utils; need_debian_pkg ca-certificates; need_debian_pkg curl; need_debian_pkg build-essential; }
