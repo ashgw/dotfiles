@@ -1,252 +1,314 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-REPO=https://raw.githubusercontent.com/AshGw/dotfiles/main
-GREEN="\e[1;32m"
-RED="\e[31m"
-CYAN="\e[36m"
-ENDCOLOR="\e[0m"
+REPO_RAW="https://raw.githubusercontent.com/AshGw/dotfiles/main"
+REPO_GIT="https://github.com/AshGw/dotfiles.git"
 
-# zsh needs to be installed natively, or else it brings trouble in some environments as
-# $HOM/.nix-profile/bin/zsh is not recognized as a valid shell
-if ! command -v zsh &> /dev/null; then
-  if [ -f "/etc/debian_version" ]; then
-    echo "Zsh not found. Installing zsh on Debian..."
-    sudo apt update
-    sudo apt -y install zsh
-  else
-    echo -e "${RED}Zsh not found, and you are not on Debian. Install it with your package manager to continue. Exiting. ${ENDCOLOR}"
-    exit 1
-  fi
-fi
-
-# Nixsetp
 GREEN="\e[1;32m"; CYAN="\e[36m"; RED="\e[31m"; END="\e[0m"
 say(){ printf "%b%s%b\n" "$CYAN" "$*" "$END"; }
 ok(){  printf "%b%s%b\n" "$GREEN" "$*" "$END"; }
 err(){ printf "%b%s%b\n" "$RED" "$*" "$END" >&2; }
 
+have(){ command -v "$1" >/dev/null 2>&1; }
+is_debian(){ [[ -f /etc/debian_version ]]; }
+as_root(){ if [[ $EUID -ne 0 ]]; then sudo "$@"; else "$@"; fi; }
+
+prompt_yes_no(){ # $1=message, return 0 for yes, 1 for no
+  local ans
+  read -r -p "$1 [y/N]: " ans
+  [[ "$ans" =~ ^[Yy]$ ]]
+}
+
 need_debian_pkg(){
   local pkg="$1"
-  if ! dpkg -s "$pkg" >/dev/null 2>&1; then
-    sudo apt-get update -y
-    sudo apt-get install -y "$pkg"
-  fi
+  is_debian || return 0
+  dpkg -s "$pkg" >/dev/null 2>&1 || { as_root apt-get update -y; as_root apt-get install -y "$pkg"; }
 }
 
-have(){ command -v "$1" >/dev/null 2>&1; }
+ensure_native_zsh(){
+  if have zsh; then ok "zsh present ($(command -v zsh))"; return; fi
+  if is_debian; then
+    say "installing zsh (native)"
+    as_root apt-get update -y
+    as_root apt-get install -y zsh
+    ok "zsh installed"
+  else
+    err "zsh not found and not Debian. Install zsh manually, then re-run."; exit 1
+  fi
+}
 
 ensure_nix(){
-  if have nix; then
-    ok "Nix already installed"
-  else
-    if [[ -f /etc/debian_version ]]; then
-      say "Installing prereqs for Nix"
-      need_debian_pkg xz-utils
-      need_debian_pkg ca-certificates
-      need_debian_pkg curl
-      need_debian_pkg build-essential
-    fi
-    say "Installing Nix (single user)"
+  if have nix; then ok "nix present"; else
+    is_debian && { need_debian_pkg xz-utils; need_debian_pkg ca-certificates; need_debian_pkg curl; need_debian_pkg build-essential; }
+    say "installing Nix (single-user)"
     sh <(curl -L https://nixos.org/nix/install) --no-daemon
   fi
-
-  if [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
-    # shellcheck disable=SC1091
-    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-  fi
-
-  mkdir -p "$HOME/.config/nix"
-  if ! grep -q 'experimental-features' "$HOME/.config/nix/nix.conf" 2>/dev/null; then
-    echo 'experimental-features = nix-command flakes' >> "$HOME/.config/nix/nix.conf"
-  fi
+  # Source nix for this session only. No shell rc edits.
+  [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"
   export NIXPKGS_ALLOW_UNFREE=1
 }
-ensure_pkg(){
-  local cmd="$1" nixAttr="$2"
-  if have "$cmd"; then
-    ok "$cmd present ($(command -v "$cmd"))"
-  else
-    say "Installing $cmd from Nix ($nixAttr)"
-    nix profile install "nixpkgs#$nixAttr"
+
+ensure_tool(){
+  # prefer nix, fallback apt, do nothing if already present
+  local cmd="$1" nix_attr="${2:-}" apt_pkg="${3:-}"
+  if have "$cmd"; then ok "$cmd present ($(command -v "$cmd"))"; return 0; fi
+  if have nix && [[ -n "$nix_attr" ]]; then
+    say "nix install $nix_attr"
+    nix profile install "nixpkgs#$nix_attr" || true
+    have "$cmd" && { ok "$cmd installed via nix"; return 0; }
+  fi
+  if is_debian && [[ -n "$apt_pkg" ]]; then
+    say "apt install $apt_pkg"
+    as_root apt-get update -y
+    as_root apt-get install -y "$apt_pkg" || true
+    have "$cmd" && { ok "$cmd installed via apt"; return 0; }
+  fi
+  have "$cmd" || err "failed to install $cmd"
+}
+
+# Language stacks from repo installer scripts, only if missing
+force_tool(){
+  local check_cmd="$1" script_rel="$2"
+  if have "$check_cmd"; then ok "$check_cmd present"; return; fi
+  say "installing $check_cmd via $script_rel"
+  bash <(curl -fsSL "$REPO_RAW/install/arbitrary/$script_rel") || err "$script_rel failed"
+  have "$check_cmd" && ok "$check_cmd installed"
+}
+
+# Clone dotfiles to temp and sync only .config/**
+sync_config_tree(){
+  local tmp root src rel dest
+  tmp="$(mktemp -d)"
+  say "cloning dotfiles to $tmp"
+  git clone --depth 1 "$REPO_GIT" "$tmp" >/dev/null 2>&1 || { err "git clone failed"; rm -rf "$tmp"; return 1; }
+
+  root="$tmp/.config"
+  if [[ ! -d "$root" ]]; then
+    err "no .config directory in repo, skipping config sync"
+    rm -rf "$tmp"; return 0
+  fi
+
+  # Copy files only. Prompt before overwriting existing files. Create dirs as needed.
+  while IFS= read -r -d '' src; do
+    rel="${src#$tmp/}"                  # .config/... path
+    dest="$HOME/$rel"
+    mkdir -p "$(dirname "$dest")"
+    if [[ -e "$dest" ]]; then
+      if prompt_yes_no "Found $rel. Override it"; then
+        cp -a "$src" "$dest"
+        ok "overwrote: $rel"
+      else
+        say "kept: $rel"
+      fi
+    else
+      cp -a "$src" "$dest"
+      ok "added: $rel"
+    fi
+  done < <(find "$root" -type f -print0)
+
+  rm -rf "$tmp"
+}
+
+# Optional restores from other/
+restore_other_sets(){
+  # APT sources and keys - ask first
+  if is_debian && prompt_yes_no "Restore APT sources and keys from repo/other"; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/apt-sources/sources.list" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      if [[ -f /etc/apt/sources.list ]]; then
+        if prompt_yes_no "Override /etc/apt/sources.list with repo version"; then
+          as_root cp -a "$f" /etc/apt/sources.list
+        fi
+      else
+        as_root cp -a "$f" /etc/apt/sources.list
+      fi
+      rm -f "$f"
+    fi
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/apt-keys/apt-key-export.gpg" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      as_root apt-key add "$f" || true
+      rm -f "$f"
+    fi
+    as_root apt-get update -y || true
+  fi
+
+  # APT packages list - install missing only
+  if is_debian; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/apt-installed.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      mapfile -t WANT < <(grep -v '^\s*$' "$f")
+      TO_INSTALL=()
+      for p in "${WANT[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || TO_INSTALL+=("$p"); done
+      if ((${#TO_INSTALL[@]})); then
+        say "apt installing ${#TO_INSTALL[@]} missing packages"
+        as_root apt-get update -y
+        as_root apt-get install -y "${TO_INSTALL[@]}" || true
+      else
+        ok "no missing apt packages"
+      fi
+      rm -f "$f"
+    fi
+  fi
+
+  # Snap - idempotent
+  if have snap; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/snap-list.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      awk 'NR>1 {print $1}' "$f" | while read -r s; do [[ -n "$s" ]] && as_root snap install "$s" || true; done
+      rm -f "$f"
+    fi
+  fi
+
+  # Flatpak - idempotent
+  if have flatpak; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/flatpak-remotes-system.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      awk 'NR>1{print $1,$2}' "$f" | while read -r name url; do flatpak remote-add --if-not-exists "$name" "$url" --system || true; done
+      rm -f "$f"
+    fi
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/flatpak-remotes-user.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      awk 'NR>1{print $1,$2}' "$f" | while read -r name url; do flatpak remote-add --if-not-exists "$name" "$url" --user || true; done
+      rm -f "$f"
+    fi
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/flatpak-system.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      awk '{print $1}' "$f" | xargs -r -n1 flatpak install -y --system || true
+      rm -f "$f"
+    fi
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/flatpak-user.txt" -o "$f" 2>/div/null && [[ -s "$f" ]]; then
+      awk '{print $1}' "$f" | xargs -r -n1 flatpak install -y --user || true
+      rm -f "$f"
+    fi
+  fi
+
+  # pip3
+  if have pip3; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/pip3-freeze.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      pip3 install -U -r "$f" || true
+      rm -f "$f"
+    fi
+  fi
+
+  # pipx
+  if have pipx; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/pipx-list.json" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+python3 - "$f" <<'PY' || true
+import json, subprocess, sys
+j=json.load(open(sys.argv[1]))
+for p in j.get("venvs",{}).keys():
+    try: subprocess.run(["pipx","install",p],check=False)
+    except: pass
+PY
+      rm -f "$f"
+    fi
+  fi
+
+  # npm and pnpm globals - harmless if already installed
+  if have npm; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/npm-global.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      xargs -a "$f" -r npm i -g || true
+      rm -f "$f"
+    fi
+  fi
+  if have pnpm; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/pnpm-global.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      xargs -a "$f" -r pnpm add -g || true
+      rm -f "$f"
+    fi
   fi
 }
 
+ensure_native_zsh
 ensure_nix
 
-say "Installing Nix packages..."
-ensure_pkg git git
-ensure_pkg curl curl
-ensure_pkg eza eza
-ensure_pkg wget wget
-ensure_pkg nvim neovim
-ensure_pkg tmux tmux
-ensure_pkg bat bat
-ensure_pkg python3 python3
-ensure_pkg ssh openssh
-ensure_pkg neofetch neofetch
-ensure_pkg tree tree
-ensure_pkg htop htop
-ensure_pkg fd fd
-ensure_pkg xclip xclip
-ensure_pkg polybar polybar
-ensure_pkg feh feh
-ensure_pkg man man
-ensure_pkg bruno bruno
-ensure_pkg i3 i3
-ensure_pkg picom picom
-ensure_pkg pango-querymodules pango
-ensure_pkg rg ripgrep
-ensure_pkg direnv direnv
-ensure_pkg librewolf librewolf
-ensure_pkg chromium chromium
-ensure_pkg virtualbox virtualbox
-ensure_pkg wireshark wireshark
-ensure_pkg nmap nmap
-ensure_pkg fzf fzf
-ensure_pkg pandoc pandoc
-ensure_pkg zathura zathura
-ensure_pkg starship starship
-ensure_pkg tor tor
-ensure_pkg tor-browser tor-browser-bundle-bin
-ensure_pkg btop btop
+say "installing base tools if missing"
+ensure_tool git git git
+ensure_tool curl curl curl
+ensure_tool wget wget wget
+ensure_tool nvim neovim neovim
+ensure_tool tmux tmux tmux
+ensure_tool bat bat bat
+ensure_tool rg ripgrep ripgrep
+ensure_tool eza eza ""
+ensure_tool fd fd fd-find
+ensure_tool xclip xclip xclip
+ensure_tool htop htop htop
+ensure_tool btop btop btop
+ensure_tool tree tree tree
+ensure_tool direnv direnv direnv
+ensure_tool fzf fzf fzf
+ensure_tool man man-db man-db
+ensure_tool python3 python3 python3
+ensure_tool ssh openssh openssh-client
+ensure_tool zathura zathura zathura
+ensure_tool chromium chromium chromium
+ensure_tool librewolf librewolf ""       # nix only
+ensure_tool virtualbox virtualbox ""     # nix only unless you handle kernel modules
+ensure_tool wireshark wireshark wireshark
+ensure_tool nmap nmap nmap
+ensure_tool tor tor tor
+ensure_tool tor-browser tor-browser-bundle-bin ""  # nix only
+ensure_tool feh feh feh
+ensure_tool picom picom picom
+ensure_tool i3 i3 i3-wm
+ok "base tools done"
 
-ok "Nix package installation complete"
-
-mkdir work trash personal
-
-# tmux plugin manager
-git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-
-
-# dircolors
-curl https://raw.githubusercontent.com/seebi/dircolors-solarized/master/dircolors.ansi-dark --output ~/.dircolors
-
-
-
-# zsh setup
-
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)" <<< $'\n'
-rm -rf ~/.zshrc
-
-mkdir ~/.config ~/.ssh ~/.config/nvim ~/.config/zathura ~/.config/neofetch ~/.config/picom ~/.config/polybar ~/.config/i3
-
-# dotfiles mapping
-echo -e "${CYAN}Copying the files into $HOME..${ENDCOLOR}"
-
-declare -A dotfiles=(
-  [".zshrc"]="$REPO/.zshrc"
-  [".dircolors"]="$REPO/.dircolors"
-  [".bashrc"]="$REPO/.bashrc"
-  [".nanorc"]="$REPO/.nanorc"
-  [".tmux.conf"]="$REPO/.tmux.conf"
-  [".gitconfig"]="$REPO/.gitconfig"
-  [".hushlogin"]="$REPO/.hushlogin"
-  [".config/starship.toml"]="$REPO/.config/starship.toml"
-  [".config/nvim/init.vim"]="$REPO/.config/nvim/init.vim"
-  [".config/zathura/zathurarc"]="$REPO/.config/zathura/zathurarc"
-  [".config/i3/config"]="$REPO/.config/i3/config"
-  [".config/polybar/colors.ini"]="$REPO/.config/polybar/colors.ini"
-  [".config/polybar/config.ini"]="$REPO/.config/polybar/config.ini"
-  [".config/polybar/launch.sh"]="$REPO/.config/polybar/launch.sh"
-  [".config/polybar/uptime.sh"]="$REPO/.config/polybar/uptime.sh"
-  [".config/neofetch/config.conf"]="$REPO/.config/neofetch/config.conf"
-  [".config/picom/picom.conf"]="$REPO/.config/picom/picom.conf"
-  [".ssh/_gh_gen.sh"]="$REPO/.ssh/_gh_gen.sh"
-  [".ssh/config"]="$REPO/.ssh/config"
-
-)
-
-for file in "${!dotfiles[@]}"; do
-  curl -o "$HOME/$file" "${dotfiles[$file]}"
-done
-
-#### zsh final confs
-echo '#Nix' >> ~/.zshrc
- cat << 'EOF' >> ~/.zshrc
-if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
-    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-fi
-EOF
-
-      ### zsh plugins ###
-git clone https://github.com/zsh-users/zsh-autosuggestions.git $HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
-
-# starship
-echo 'eval "$(starship init zsh)"' >> ~/.zshrc
-starship preset nerd-font-symbols -o ~/.config/starship.toml
-
-
-##############################################
-#### now for the extra shit
-
-read -p "Do you want to install all the arbitrary dev packages? (y/n): " ans
-
-if [ "$ans" == "y" ]; then
-
-    echo -e "\e[1;32mInstalling conda...\e[0m"
-    bash <(curl -L $REPO/install/arbitrary/conda)
-    echo -e "${GREEN}Conda installation: Done!.${ENDCOLOR}"
-
-    echo -e "\e[1;32mInstalling node...\e[0m"
-    bash <(curl -L $REPO/install/arbitrary/node)
-    echo -e "${GREEN}Node installation done!.${ENDCOLOR}"
-
-
-    echo -e "\e[1;32mInstalling bun...\e[0m"
-    bash <(curl -L $REPO/install/arbitrary/bun)
-    echo -e "${GREEN}Bun installation done!.${ENDCOLOR}"
-
-    echo -e "\e[1;32mInstalling pnpm...\e[0m"
-    bash <(curl -L $REPO/install/arbitrary/pnpm)
-    echo -e "${GREEN}Pnpm installation done!.${ENDCOLOR}"
-
-    echo -e "\e[1;32mInstalling poetry...\e[0m"
-    bash <(curl -L $REPO/install/arbitrary/poetry)
-    echo -e "${GREEN}Poetry installation done!${ENDCOLOR}"
-
-    echo -e "\e[1;32mInstalling go...\e[0m"
-    bash <(curl -L $REPO/install/arbitrary/go)
-    echo -e "${GREEN}Go installation done!${ENDCOLOR}"
-
-    echo -e "\e[1;32mInstalling terraform...\e[0m"
-    bash <(curl -L $REPO/install/arbitrary/terraform)
-    echo -e "${GREEN}terraform installation done!${ENDCOLOR}"
-
-
-
-    echo -e "\e[1;32mInstalling rust...\e[0m"
-    bash <(curl -L $REPO/install/arbitrary/rust)
-    echo -e "${GREEN}Rust installation done!${ENDCOLOR}"
-    echo -e "${CYAN}Installation of arbitrary packages is completed.${ENDCOLOR}"
-
-
+# Obsidian forced if missing
+if ! have obsidian; then
+  say "installing Obsidian"
+  bash <(curl -fsSL "$REPO_RAW/install/proprietary/obsidian") || err "Obsidian installer failed"
 else
-    echo "Skipping installation of arbitrary dev packages."
+  ok "obsidian present"
 fi
 
-#############
+# Language stacks - install if missing
+force_tool conda "conda"
+force_tool node  "node"
+force_tool bun   "bun"
+force_tool pnpm  "pnpm"
+force_tool poetry "poetry"
+force_tool go     "go"
+force_tool terraform "terraform"
+if have cargo || have rustup; then ok "rust present"; else bash <(curl -fsSL "$REPO_RAW/install/arbitrary/rust") || err "rust install failed"; fi
 
-read -p $"Do you by any chance want to install some proprietary software? (y/n)\nThe list currently contains: Obsidian: " ans
-
-if [ "$ans" == "y" ]; then
-    echo -e "${GREEN}Installing Obsidian${ENDCOLOR}"
-    bash <(curl -L $REPO/install/proprietary/obsidian)
-    echo -e "${GREEN}Obsidian is installed!${ENDCOLOR}"
+# Oh My Zsh - install if missing, no updates if present
+if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
+  say "installing oh-my-zsh"
+  RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 else
-    echo "Skipping the proprietary software installation."
+  ok "oh-my-zsh present"
 fi
 
-read -p $"Want to to set up GitHub SSH keys now? (y/n): " ans
+# zsh plugins - only if missing
+ZCUST="$HOME/.oh-my-zsh/custom/plugins"
+mkdir -p "$ZCUST"
+[[ -d "$ZCUST/zsh-autosuggestions" ]] || git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZCUST/zsh-autosuggestions"
+[[ -d "$ZCUST/zsh-syntax-highlighting" ]] || git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZCUST/zsh-syntax-highlighting"
 
-if [ "$ans" == "y" ]; then
-    bash <(curl -L $REPO/.ssh/_gh_gen.sh)
-    echo -e "${GREEN}Done! The public key has been copied to your clipboard${ENDCOLOR}"
+# TPM - only if missing
+[[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
 
+# Optional GNOME extras and keybindings
+is_gnome_session(){ [[ "${XDG_CURRENT_DESKTOP:-}${XDG_SESSION_DESKTOP:-}" =~ GNOME ]] || pgrep -x gnome-shell >/dev/null 2>&1; }
+if is_gnome_session && prompt_yes_no "GNOME detected. Install GNOME extras and load keybindings from repo/other"; then
+  is_debian && { as_root apt-get update -y; as_root apt-get install -y gnome-tweaks gnome-shell-extensions dconf-cli || true; }
+  if have dconf; then
+    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/keybindings.dconf" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
+      if prompt_yes_no "Apply repo keybindings to your GNOME settings"; then
+        dconf load /org/gnome/settings-daemon/plugins/media-keys/ < "$f" || true
+      fi
+      rm -f "$f"
+    fi
+  fi
+fi
+
+# Sync .config tree with prompts per file
+sync_config_tree
+
+# Optional APT, Flatpak, npm, pnpm, pip, pipx restore work
+restore_other_sets
+
+# SSH keys prompt
+if prompt_yes_no "Set up GitHub SSH keys now"; then
+  bash <(curl -fsSL "$REPO_RAW/.ssh/_gh_gen.sh") || err "SSH key setup failed"
+  ok "SSH keys done"
 else
-    echo "Aight, maybe later. You can run `ghkey` whenever youre ready to set it up."
+  say "skip SSH keys; run: bash <(curl -fsSL $REPO_RAW/.ssh/_gh_gen.sh) when ready"
 fi
 
-
-echo -e "${GREEN}Bootstrapped!${ENDCOLOR}"
-echo -e "${CYAN}You might restart your shell for changes to take place${ENDCOLOR}"
+mkdir -p "$HOME"/{work,trash,personal}
+ok "bootstrap complete"
