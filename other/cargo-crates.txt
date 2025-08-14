@@ -4,5 +4,6 @@ dua-cli
 img_watermarker
 just
 lsd
+starship
 wasm-pack
 zoxide
