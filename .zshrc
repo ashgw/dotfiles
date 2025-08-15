@@ -141,6 +141,9 @@ export NVM_DIR="$HOME/.nvm"
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
 
+# sbin too
+export PATH=$PATH:/usr/sbin
+
 # bun
 export BUN_INSTALL="$HOME/.bun"
 
