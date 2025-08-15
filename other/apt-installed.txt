@@ -288,6 +288,7 @@ lsb-release
 lsof
 lua5.4
 make
+mako-notifier
 man-db
 manpages
 mawk
@@ -393,6 +394,7 @@ vulkan-validationlayers
 wamerican
 waybar
 wayland-protocols
+wev
 wget
 whiptail
 wireless-tools

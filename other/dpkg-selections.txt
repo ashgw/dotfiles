@@ -1924,6 +1924,7 @@ lua5.4						install
 luit						install
 m4						install
 make						install
+mako-notifier					install
 man-db						install
 manpages					install
 manpages-dev					install
@@ -2401,6 +2402,7 @@ wamerican					install
 waybar						install
 wayland-protocols				install
 wayland-utils					install
+wev						install
 wget						install
 whiptail					install
 wireless-regdb					install
