@@ -17,6 +17,7 @@ apt-config-icons-hidpi				install
 apt-config-icons-large				install
 apt-config-icons-large-hidpi			install
 apt-listchanges					install
+apt-transport-https				install
 apt-utils					install
 aspell						install
 aspell-en					install
@@ -76,6 +77,7 @@ cliphist					install
 cmake						install
 cmake-data					install
 cmake-extras					install
+code						install
 console-setup					install
 console-setup-linux				install
 coreutils					install
@@ -1256,6 +1258,8 @@ libnl-3-200:amd64				install
 libnl-genl-3-200:amd64				install
 libnl-route-3-200:amd64				install
 libnm0:amd64					install
+libnma-common					install
+libnma0:amd64					install
 libnorm1t64:amd64				install
 libnotificationmanager1				install
 libnotify-bin					install
@@ -1962,6 +1966,7 @@ netbase						install
 netcat-traditional				install
 netpbm						install
 network-manager					install
+network-manager-gnome				install
 network-manager-l10n				install
 nftables					install
 ninja-build					install
@@ -2332,6 +2337,7 @@ sq						install
 sqv						install
 sse3-support					install
 sshfs						install
+strace						install
 sudo						install
 swappy						install
 sway-notification-center			install
@@ -2409,7 +2415,6 @@ wireless-regdb					install
 wireless-tools					install
 wireplumber					install
 wl-clipboard					install
-wlogout						install
 wofi						install
 wpasupplicant					install
 wtmpdb						install

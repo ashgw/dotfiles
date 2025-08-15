@@ -2,6 +2,7 @@ adduser
 alsa-utils
 apt
 apt-listchanges
+apt-transport-https
 apt-utils
 base-files
 base-passwd
@@ -12,6 +13,7 @@ bc
 bind9-dnsutils
 bind9-host
 blueman
+bluez
 brightnessctl
 bsdutils
 btop
@@ -24,6 +26,7 @@ chromium
 cliphist
 cmake
 cmake-extras
+code
 console-setup
 coreutils
 cpio
@@ -86,6 +89,7 @@ gnome-sushi
 gnome-system-monitor
 gnupg
 golang
+gpg
 grep
 grim
 groff-base
@@ -308,6 +312,7 @@ netbase
 netcat-traditional
 net-tools
 network-manager
+network-manager-gnome
 nftables
 nvtop
 nwg-displays
@@ -362,6 +367,7 @@ slurp
 speedtest-cli
 spotify-client
 sqv
+strace
 sudo
 swappy
 sway-notification-center
@@ -399,7 +405,6 @@ wget
 whiptail
 wireless-tools
 wl-clipboard
-wlogout
 wofi
 wpasupplicant
 wtmpdb
