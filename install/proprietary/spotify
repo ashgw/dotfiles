@@ -1,0 +1,11 @@
+sudo rm -f /etc/apt/keyrings/spotify.gpg
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/spotify.gpg
+
+echo "deb [signed-by=/etc/apt/keyrings/spotify.gpg arch=amd64] http://repository.spotify.com stable non-free" \
+  | sudo tee /etc/apt/sources.list.d/spotify.list >/dev/null
+
+sudo apt update
+sudo apt install -y spotify-client
+
