@@ -1,5 +1,6 @@
 # Just paste the key G
-ssh-keygen -t ed25519 -f ~/.ssh/github
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/github
-xclip -sel clip < ~/.ssh/github.pub
+ssh-keygen -t ed25519 -a 100 -f ~/.ssh/github -C "github-$(hostname)"
+eval "$(ssh-agent -s)" >/dev/null
+ssh-add -q ~/.ssh/github
+copy < ~/.ssh/github.pub
+
