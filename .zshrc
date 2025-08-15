@@ -179,6 +179,7 @@ alias tt="tmux"
 alias obs="obsidian"
 alias p="python3 -m"
 alias l="lsd -a"
+alias purge="sudo apt purge --autoremove"
 alias v="nvim"
 alias reload=". ~/.zshrc"
 alias y="rm -rf"
@@ -226,3 +227,4 @@ get_a_job_broke_aaah(){
 
 # functions pack
 [ -f "$HOME/zshfuncs/entrypoint.zsh" ] && source "$HOME/zshfuncs/entrypoint.zsh"
+
