@@ -1,0 +1,75 @@
+{
+    "pipx_spec_version": "0.1",
+    "venvs": {
+        "waypaper": {
+            "metadata": {
+                "injected_packages": {},
+                "main_package": {
+                    "app_paths": [
+                        {
+                            "__Path__": "/home/rana/.local/share/pipx/venvs/waypaper/bin/waypaper",
+                            "__type__": "Path"
+                        }
+                    ],
+                    "app_paths_of_dependencies": {
+                        "imageio": [
+                            {
+                                "__Path__": "/home/rana/.local/share/pipx/venvs/waypaper/bin/imageio_download_bin",
+                                "__type__": "Path"
+                            },
+                            {
+                                "__Path__": "/home/rana/.local/share/pipx/venvs/waypaper/bin/imageio_remove_bin",
+                                "__type__": "Path"
+                            }
+                        ],
+                        "numpy": [
+                            {
+                                "__Path__": "/home/rana/.local/share/pipx/venvs/waypaper/bin/f2py",
+                                "__type__": "Path"
+                            },
+                            {
+                                "__Path__": "/home/rana/.local/share/pipx/venvs/waypaper/bin/numpy-config",
+                                "__type__": "Path"
+                            }
+                        ]
+                    },
+                    "apps": [
+                        "waypaper"
+                    ],
+                    "apps_of_dependencies": [
+                        "imageio_download_bin",
+                        "imageio_remove_bin",
+                        "f2py",
+                        "numpy-config"
+                    ],
+                    "include_apps": true,
+                    "include_dependencies": false,
+                    "man_pages": [
+                        "man1/waypaper.1.gz"
+                    ],
+                    "man_pages_of_dependencies": [],
+                    "man_paths": [
+                        {
+                            "__Path__": "/home/rana/.local/share/pipx/venvs/waypaper/share/man/man1/waypaper.1.gz",
+                            "__type__": "Path"
+                        }
+                    ],
+                    "man_paths_of_dependencies": {},
+                    "package": "waypaper",
+                    "package_or_url": "waypaper",
+                    "package_version": "2.6",
+                    "pinned": false,
+                    "pip_args": [],
+                    "suffix": ""
+                },
+                "pipx_metadata_version": "0.5",
+                "python_version": "Python 3.13.5",
+                "source_interpreter": {
+                    "__Path__": "/usr/bin/python3.13",
+                    "__type__": "Path"
+                },
+                "venv_args": []
+            }
+        }
+    }
+}
