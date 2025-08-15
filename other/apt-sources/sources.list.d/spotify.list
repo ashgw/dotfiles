@@ -1,1 +1,0 @@
-deb [signed-by=/etc/apt/keyrings/spotify.gpg arch=amd64] http://repository.spotify.com stable non-free
