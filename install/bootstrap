@@ -94,7 +94,7 @@ sync_config_tree(){
 
   # Copy files only. Prompt before overwriting existing files. Create dirs as needed.
   while IFS= read -r -d '' src; do
-    rel="${src#$tmp/}"                  # .config/... path
+    rel="${src#$tmp/}"
     dest="$HOME/$rel"
     mkdir -p "$(dirname "$dest")"
     if [[ -e "$dest" ]]; then
@@ -113,28 +113,9 @@ sync_config_tree(){
   rm -rf "$tmp"
 }
 
-# Optional restores from other/
+# Optional restores from other/ (no APT sources or keyrings)
 restore_other_sets(){
-  # APT sources and keys - ask first
-  if is_debian && prompt_yes_no "Restore APT sources and keys from repo/other"; then
-    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/apt-sources/sources.list" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
-      if [[ -f /etc/apt/sources.list ]]; then
-        if prompt_yes_no "Override /etc/apt/sources.list with repo version"; then
-          as_root cp -a "$f" /etc/apt/sources.list
-        fi
-      else
-        as_root cp -a "$f" /etc/apt/sources.list
-      fi
-      rm -f "$f"
-    fi
-    if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/apt-keys/apt-key-export.gpg" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
-      as_root apt-key add "$f" || true
-      rm -f "$f"
-    fi
-    as_root apt-get update -y || true
-  fi
-
-  # APT packages list - install missing only
+  # APT packages list only - install missing packages
   if is_debian; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/apt-installed.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       mapfile -t WANT < <(grep -v '^\s*$' "$f")
@@ -195,7 +176,8 @@ import json, subprocess, sys
 j=json.load(open(sys.argv[1]))
 for p in j.get("venvs",{}).keys():
     try: subprocess.run(["pipx","install",p],check=False)
-    except: pass
+    except Exception:
+        pass
 PY
       rm -f "$f"
     fi
@@ -231,7 +213,7 @@ PY
     fi
   fi
 
-    # Nix profile installs (best-effort)
+  # Nix profile installs (best effort)
   if have nix; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/nix-profile.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       while read -r name; do
@@ -276,8 +258,8 @@ ok "base tools done"
 # Obsidian forced if missing
 if ! have obsidian; then
   say "installing Obsidian"
- export NIXPKGS_ALLOW_INSECURE=1
- export NIXPKGS_ALLOW_UNFREE=1
+  export NIXPKGS_ALLOW_INSECURE=1
+  export NIXPKGS_ALLOW_UNFREE=1
   bash <(curl -fsSL "$REPO_RAW/install/proprietary/obsidian") || err "Obsidian installer failed"
 else
   ok "obsidian present"
@@ -285,7 +267,6 @@ fi
 
 # TPM - only if missing
 [[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
-
 
 # ensure OMZ custom plugins exist
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
@@ -296,9 +277,7 @@ mkdir -p "$ZCUST"
   git clone https://github.com/zsh-users/zsh-autosuggestions "$ZCUST/zsh-autosuggestions"
 
 [[ -d "$ZCUST/zsh-syntax-highlighting" ]] || \
-
   git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZCUST/zsh-syntax-highlighting"
-
 
 ask_install() { # $1=tool name, $2=check command, $3=install command
   if command -v "$2" >/dev/null 2>&1; then
@@ -340,7 +319,6 @@ else
   ok "oh-my-zsh present"
 fi
 
-
 # Optional GNOME extras and keybindings
 is_gnome_session(){ [[ "${XDG_CURRENT_DESKTOP:-}${XDG_SESSION_DESKTOP:-}" =~ GNOME ]] || pgrep -x gnome-shell >/dev/null 2>&1; }
 if is_gnome_session && prompt_yes_no "GNOME detected. Install GNOME extras and load keybindings from repo/other"; then
@@ -358,7 +336,7 @@ fi
 # Sync .config tree with prompts per file
 sync_config_tree
 
-# Optional APT, Flatpak, npm, pnpm, pip, pipx restore work
+# Optional restores for packages and tooling (no sources or keyrings)
 restore_other_sets
 
 # SSH keys prompt
@@ -371,3 +349,4 @@ fi
 
 mkdir -p "$HOME"/{work,trash,personal}
 ok "bootstrap complete"
+
