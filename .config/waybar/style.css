@@ -1,0 +1,62 @@
+/* Tokyonight night palette */
+@define-color bg rgba(26,27,38,0.88);
+@define-color bg-alt rgba(41,42,56,0.88);
+@define-color fg #c0caf5;
+@define-color mute #414868;
+@define-color blue #7aa2f7;
+@define-color cyan #7dcfff;
+@define-color green #9ece6a;
+@define-color yellow #e0af68;
+@define-color red #f7768e;
+@define-color magenta #bb9af7;
+
+* {
+  font-family: "Iosevka Nerd Font", "HurmitNerdFont", monospace;
+  font-size: 12px;
+  border: none;
+  color: @fg;
+}
+
+window#waybar {
+  background: @bg;
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+
+#workspaces button {
+  padding: 0 8px;
+  margin: 0 3px;
+  background: transparent;
+  color: @mute;
+  transition: all 120ms ease;
+}
+#workspaces button.active {
+  color: @fg;
+  background: @bg-alt;
+  border-radius: 10px;
+}
+#workspaces button.urgent {
+  color: @bg;
+  background: @red;
+}
+
+#window { color: @fg; }
+
+#clock        { color: @blue; }
+#pulseaudio   { color: @cyan; }
+#backlight    { color: @yellow; }
+#battery      { color: @green; }
+#battery.warning { color: @yellow; }
+#battery.critical { color: @red; }
+#network      { color: @magenta; }
+#cpu          { color: @green; }
+#memory       { color: @magenta; }
+#temperature  { color: @cyan; }
+#tray > *     { padding: 0 6px; }
+
+#cpu, #memory, #temperature, #backlight, #pulseaudio, #network, #battery, #clock, #window, #workspaces, #tray {
+  padding: 0 8px;
+  margin: 0 4px;
+  background: transparent;
+}
+

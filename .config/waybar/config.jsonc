@@ -1,0 +1,110 @@
+{
+  // Waybar config for Hyprland on Debian Trixie
+  "layer": "top",
+  "position": "top",
+  "height": 30,
+  "margin-top": 6,
+  "margin-left": 8,
+  "margin-right": 8,
+  "gtk-layer-shell": true,
+
+  "modules-left": ["hyprland/workspaces", "clock"],
+  "modules-center": ["window"],
+  "modules-right": ["tray", "cpu", "memory", "temperature", "backlight", "pulseaudio", "network", "battery"],
+
+  "hyprland/workspaces": {
+    "on-click": "hyprctl dispatch workspace {id}",
+    "on-scroll-up": "hyprctl dispatch workspace m+1",
+    "on-scroll-down": "hyprctl dispatch workspace m-1",
+    // keep 1..10 visible even when empty
+    "persistent_workspaces": {
+      "*": [1,2,3,4,5,6,7,8,9,10]
+    },
+    "format": "{icon}",
+    "format-icons": {
+      "default": "",
+      "active": "",
+      "urgent": ""
+    },
+    "icon-size": 14
+  },
+
+  "window": {
+    "format": "{title}",
+    "max-length": 90,
+    "separate-outputs": true,
+    "rewrite": {
+      "^(.*) - Mozilla Firefox$": "$1",
+      "^(.*) - Visual Studio Code$": "$1"
+    }
+  },
+
+  "clock": {
+    "interval": 1,
+    "format": "  {:%a %d %b  %H:%M}",
+    "tooltip": false
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "  0%",
+    "format-icons": { "default": ["","",""] },
+    "scroll-step": 5,
+    "on-click": "pamixer -t",
+    "on-scroll-up": "pamixer -i 5",
+    "on-scroll-down": "pamixer -d 5"
+  },
+
+  "backlight": {
+    "format": " {percent}%",
+    "on-scroll-up": "brightnessctl set +5%",
+    "on-scroll-down": "brightnessctl set 5%-"
+  },
+
+  "battery": {
+    "states": { "warning": 0.25, "critical": 0.10 },
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "format-plugged": " {capacity}%",
+    "format-icons": ["","","","",""],
+    "interval": 10,
+    "tooltip": false
+  },
+
+  "network": {
+    "interval": 2,
+    "format-wifi": "  {essid} {signalStrength}%",
+    "format-ethernet": "󰈀  {ipaddr}",
+    "format-disconnected": "󰤭  Offline",
+    "tooltip": true,
+    "on-click": "nm-connection-editor || true"
+  },
+
+  "cpu": {
+    "interval": 1,
+    "format": " {usage}%",
+    "tooltip": false,
+    "on-click": "kitty -e btop"
+  },
+
+  "memory": {
+    "interval": 2,
+    "format": " {used:0.0f}G",
+    "tooltip": false,
+    "on-click": "kitty -e btop"
+  },
+
+  "temperature": {
+    "interval": 2,
+    "hwmon-path": "/sys/class/thermal/thermal_zone0/temp",
+    "critical-threshold": 80,
+    "format": " {temperatureC}°C",
+    "tooltip": false
+  },
+
+  "tray": {
+    "icon-size": 16,
+    "spacing": 8
+  }
+}
+
