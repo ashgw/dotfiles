@@ -1,5 +1,4 @@
 {
-  // Waybar config for Hyprland on Debian Trixie
   "layer": "top",
   "position": "top",
   "height": 30,
@@ -10,22 +9,15 @@
 
   "modules-left": ["hyprland/workspaces", "clock"],
   "modules-center": ["window"],
-  "modules-right": ["tray", "cpu", "memory", "temperature", "backlight", "pulseaudio", "network", "battery"],
+  "modules-right": ["tray", "cpu", "memory", "temperature", "backlight", "pulseaudio", "bluetooth", "network", "battery"],
 
   "hyprland/workspaces": {
     "on-click": "hyprctl dispatch workspace {id}",
     "on-scroll-up": "hyprctl dispatch workspace m+1",
     "on-scroll-down": "hyprctl dispatch workspace m-1",
-    // keep 1..10 visible even when empty
-    "persistent_workspaces": {
-      "*": [1,2,3,4,5,6,7,8,9,10]
-    },
+    "persistent_workspaces": { "*": [1,2,3,4,5,6,7,8,9,10] },
     "format": "{icon}",
-    "format-icons": {
-      "default": "",
-      "active": "",
-      "urgent": ""
-    },
+    "format-icons": { "default": "", "active": "", "urgent": "" },
     "icon-size": 14
   },
 
@@ -39,9 +31,11 @@
     }
   },
 
+  // Time in Tunisia, no month in display
   "clock": {
     "interval": 1,
-    "format": "  {:%a %d %b  %H:%M}",
+    "timezone": "Africa/Tunis",
+    "format": "  {:%a %d  %H:%M}",
     "tooltip": false
   },
 
@@ -71,13 +65,27 @@
     "tooltip": false
   },
 
+  // Wi-Fi without SSID on the bar. Icons reflect strength. Details on hover.
   "network": {
     "interval": 2,
-    "format-wifi": "  {essid} {signalStrength}%",
-    "format-ethernet": "󰈀  {ipaddr}",
+    "format-wifi": "{icon} {signalStrength}%",
+    "format-ethernet": "󰈀",
     "format-disconnected": "󰤭  Offline",
-    "tooltip": true,
+    "format-icons": ["󰤯","󰤟","󰤢","󰤥","󰤨"],
+    "tooltip-format-wifi": "{essid}\n{ipaddr} via {gwaddr}\n{frequency} MHz",
+    "tooltip-format-ethernet": "{ifname}\n{ipaddr} via {gwaddr}",
+    "tooltip-format-disconnected": "No network",
     "on-click": "nm-connection-editor || true"
+  },
+
+  // Clean Bluetooth glyph. Icon only on bar, details on hover.
+  "bluetooth": {
+    "format": "{icon}",
+    "format-connected": "󰂯",
+    "format-disconnected": "󰂲",
+    "format-disabled": "󰂲",
+    "on-click": "blueman-manager || blueberry || true",
+    "tooltip-format": "Bluetooth: {status}\n{device_alias}"
   },
 
   "cpu": {
