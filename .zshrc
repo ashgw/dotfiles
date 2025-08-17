@@ -215,14 +215,6 @@ alias cs="cursor"
 alias lay='tree -a --gitignore -I ".git"'
 
 # ───────────────────────────────
-# Fun stubs
-# ───────────────────────────────
-get_some_bitches(){ echo 'coming soon, tap in G'; }
-get_a_job_broke_aaah(){
-  google-chrome "https://www.google.com/search?q=site%3A*.com+-site%3Aremoterocketship.com+-site%3Aweworkremotely.com+-site%3Ajobspresso.co+-site%3Ajustremote.co+-site%3Adynamitejobs.com+-site%3Aworkatastartup.com+-site%3Aangel.co+-site%3Ahimalayas.app+-site%3Aoutsourcely.com+-site%3Aeuropelanguagejobs.com+-site%3Ajobicy.com+-site%3Alanding.jobs+-site%3Aworkingnomads.co+inurl%3A(jobs+OR+careers)+(%22TypeScript%22+OR+%22Next.js%22+OR+%22Node.js%22+OR+%22Python%22+OR+%22Laravel%22)+(%22remote%22+OR+%22online%22)+(%22equity%22)+(%22United+States%22+OR+%22US-based%22)+after%3A2025-02-01"
-}
-
-# ───────────────────────────────
 # Misc
 # ───────────────────────────────
 # command-not-found (Debian/Ubuntu)
