@@ -36,6 +36,7 @@ bash						install
 bash-completion					install
 bat						install
 bc						install
+bibata-cursor-theme				install
 bind9-dnsutils					install
 bind9-host					install
 bind9-libs:amd64				install
@@ -120,6 +121,7 @@ dirmngr						install
 distro-info-data				install
 dmidecode					install
 dmsetup						install
+dmz-cursor-theme				install
 dns-root-data					install
 dnsmasq-base					install
 doc-debian					install
@@ -424,6 +426,7 @@ libarchive13t64:amd64				install
 libaribb24-0t64:amd64				install
 libasan8:amd64					install
 libasound2-data					install
+libasound2-dev:amd64				install
 libasound2-plugins:amd64			install
 libasound2t64:amd64				install
 libaspell15:amd64				install
@@ -2265,6 +2268,7 @@ qml6-module-qtwebchannel:amd64			install
 qml6-module-qtwebengine:amd64			install
 qml6-module-qtwebview:amd64			install
 qml6-module-sso-onlineaccounts:amd64		install
+qrencode					install
 qt-style-kvantum				install
 qt-style-kvantum-l10n				install
 qt-style-kvantum-themes				install
@@ -2364,6 +2368,7 @@ tpm-udev					install
 traceroute					install
 tracker-extract					install
 tree						install
+tty-clock					install
 tumbler						install
 tumbler-common					install
 tzdata						install
@@ -2426,11 +2431,12 @@ x11proto-dev					install
 xauth						install
 xclip						install
 xcur2png					install
+xcursor-themes					install
 xcvt						install
 xdg-dbus-proxy					install
 xdg-desktop-portal				install
 xdg-desktop-portal-gtk				install
-xdg-desktop-portal-kde				install
+xdg-desktop-portal-wlr				install
 xdg-user-dirs					install
 xdg-user-dirs-gtk				install
 xdg-utils					install

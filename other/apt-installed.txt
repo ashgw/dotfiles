@@ -1,4 +1,5 @@
 adduser
+adwaita-icon-theme
 alsa-utils
 apt
 apt-listchanges
@@ -10,6 +11,7 @@ bash
 bash-completion
 bat
 bc
+bibata-cursor-theme
 bind9-dnsutils
 bind9-host
 blueman
@@ -46,6 +48,7 @@ dhcpcd-base
 diffutils
 direnv
 dmidecode
+dmz-cursor-theme
 doc-debian
 dpkg
 dpkg-dev
@@ -122,6 +125,7 @@ less
 libacl1
 libapparmor1
 libapt-pkg7.0
+libasound2-dev
 libattr1
 libaudit1
 libaudit-common
@@ -165,6 +169,7 @@ libglvnd-dev
 libgmp10
 libgraphene-1.0-dev
 libgssapi-krb5-2
+libgtk-3-bin
 libgtk-3-dev
 libgulkan-0.15-0t64
 libgulkan-dev
@@ -229,6 +234,7 @@ libsemanage-common
 libsepol2
 libslang2
 libsmartcols1
+libspa-0.2-bluetooth
 libspng-dev
 libsqlite3-0
 libss2
@@ -328,6 +334,7 @@ perl
 perl-base
 pipewire
 pipewire-bin
+pipewire-pulse
 pipx
 pkgconf
 pkg-config
@@ -340,6 +347,7 @@ pulseaudio-utils
 python3-pip
 python3-pyquery
 qalculate-gtk
+qrencode
 qt5ct
 qt5-style-kvantum
 qt6-3d-dev
@@ -382,6 +390,7 @@ tasksel
 tmux
 traceroute
 tree
+tty-clock
 tumbler
 tzdata
 ucf
@@ -404,13 +413,16 @@ wev
 wget
 whiptail
 wireless-tools
+wireplumber
 wl-clipboard
 wofi
 wpasupplicant
 wtmpdb
 xclip
+xcursor-themes
 xdg-desktop-portal
 xdg-desktop-portal-gtk
+xdg-desktop-portal-wlr
 xdg-user-dirs
 xsel
 xwayland
