@@ -24,7 +24,6 @@ busybox
 bzip2
 ca-certificates
 cava
-chromium
 cliphist
 cmake
 cmake-extras

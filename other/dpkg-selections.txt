@@ -29,7 +29,6 @@ automake					install
 autopoint					install
 autotools-dev					install
 avahi-daemon					install
-avahi-utils					install
 base-files					install
 base-passwd					install
 bash						install
@@ -70,9 +69,6 @@ bzip2-doc					install
 ca-certificates					install
 catdoc						install
 cava						install
-chromium					install
-chromium-common					install
-chromium-sandbox				install
 clinfo						install
 cliphist					install
 cmake						install
@@ -91,7 +87,6 @@ cracklib-runtime				install
 cron						install
 cron-daemon-common				install
 cryfs						install
-cups-pk-helper					install
 curl						install
 dash						install
 dbus						install
@@ -235,16 +230,12 @@ gir1.2-gtk-3.0:amd64				install
 gir1.2-gtklayershell-0.1			install
 gir1.2-gtksource-4:amd64			install
 gir1.2-gudev-1.0:amd64				install
-gir1.2-handy-1:amd64				install
 gir1.2-harfbuzz-0.0:amd64			install
 gir1.2-javascriptcoregtk-4.1:amd64		install
 gir1.2-nm-1.0:amd64				install
-gir1.2-notify-0.7:amd64				install
-gir1.2-packagekitglib-1.0			install
 gir1.2-pango-1.0:amd64				install
 gir1.2-polkit-1.0				install
 gir1.2-rsvg-2.0:amd64				install
-gir1.2-secret-1:amd64				install
 gir1.2-soup-3.0:amd64				install
 gir1.2-webkit2-4.1:amd64			install
 girepository-tools:amd64			install
@@ -2078,10 +2069,7 @@ python3-chardet					install
 python3-charset-normalizer			install
 python3-click					install
 python3-cssselect				install
-python3-cups:amd64				install
-python3-cupshelpers				install
 python3-dateutil				install
-python3-dbus					install
 python3-debconf					install
 python3-debian					install
 python3-debianbts				install
@@ -2140,7 +2128,6 @@ python3-requests				install
 python3-sentry-sdk				install
 python3-setuptools				install
 python3-setuptools-whl				install
-python3-smbc					install
 python3-soupsieve				install
 python3-tk:amd64				install
 python3-tornado					install
@@ -2346,9 +2333,6 @@ sudo						install
 swappy						install
 sway-notification-center			install
 switcheroo-control				install
-system-config-printer				install
-system-config-printer-common			install
-system-config-printer-udev			install
 systemd						install
 systemd-coredump				install
 systemd-sysv					install
