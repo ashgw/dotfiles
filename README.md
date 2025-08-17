@@ -1,6 +1,6 @@
 ## Setup
 >[!CAUTION]
->The installation script is meant to be used on a minimal Debian installation. It will replace any existing configuration. Proceed with caution.
+>The installation script is meant to be used on a minimal Debian (Trixie) installation. It will replace any existing configuration. Proceed with caution.
 ```shell
 bash <(curl -L ashgw.me/api/v1/bootstrap)
 ```
