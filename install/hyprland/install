@@ -1,4 +1,5 @@
 #!/bin/bash
+# Hyprland installer for Debian Trixie or Sid (minimal + optional Waybar)
 set -Eeuo pipefail
 
 # ---------- colored logging ----------
@@ -110,6 +111,7 @@ BUILD_DEPS=(
   libxcb-icccm4-dev libxcb-present-dev libxcb-render-util0-dev
   libxcb-xfixes0-dev libxcb-xinput-dev libxkbcommon-dev libxkbcommon-x11-dev
   meson ninja-build xwayland
+  hyprwayland-scanner            # new: ensure scanner exists (Trixie/Sid)
 )
 OPTIONAL_BUILD_DEPS=( hyprland-protocols )
 
@@ -171,8 +173,39 @@ EOF
   fi
 fi
 
+# ---------- Aquamarine (required by Hyprland >=0.49) ----------
+ensure_aquamarine(){
+  local min="0.8.0"
+  if pkg-config --exists "aquamarine >= $min"; then
+    local ver; ver="$(pkg-config --modversion aquamarine || true)"
+    ok "aquamarine $ver present"
+    return 0
+  fi
+  step "Building aquamarine (>= $min)"
+  local AQ_TAG="${AQ_TAG:-v0.9.3}"   # tag known good with 0.49.x
+  rm -rf aquamarine 2>/dev/null || true
+  doing "Cloning aquamarine $AQ_TAG"
+  git clone --depth 1 -b "$AQ_TAG" https://github.com/hyprwm/aquamarine 2>&1 | tee -a "$LOG"
+  pushd aquamarine >/dev/null
+  doing "Configuring"
+  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr 2>&1 | tee -a "../$LOG"
+  doing "Compiling"
+  cmake --build build -j"$(nproc 2>/dev/null || getconf _NPROCESSORS_CONF)" 2>&1 | tee -a "../$LOG"
+  doing "Installing"
+  sudo cmake --install build 2>&1 | tee -a "../$LOG"
+  sudo ldconfig
+  popd >/dev/null
+  if pkg-config --exists "aquamarine >= $min"; then
+    ok "aquamarine installed"
+  else
+    err "aquamarine install failed; see $LOG"
+    exit 1
+  fi
+}
+ensure_aquamarine
+
 # ---------- build Hyprland ----------
-HYPRLAND_VERSION="v0.49.0"   # keep as-is to avoid surprises
+HYPRLAND_VERSION="v0.49.0"   # unchanged
 current=""
 if command -v Hyprland >/dev/null 2>&1; then
   current="$(Hyprland -v 2>/dev/null | sed -nE 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/v\1/p' || true)"
