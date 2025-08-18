@@ -375,3 +375,18 @@ else say "skip SSH keys; run your helper when ready"; fi
 mkdir -p "$HOME"/{work,trash,personal}
 ok "bootstrap complete"
 
+say "Would you like to install Hyprland?"
+read -r -p "[y/N]: " ans
+case "$ans" in
+  [yY]|[yY][eE][sS])
+    say "Fetching Hyprland installer..."
+    if curl -fsSL "https://raw.githubusercontent.com/ashgw/dotfiles/refs/heads/main/install/hyprland/install" | bash; then
+    else
+      err "Hyprland installer failed"
+    fi
+    ;;
+  *)
+    warn "Skipping Hyprland installation"
+    ;;
+esac
+
