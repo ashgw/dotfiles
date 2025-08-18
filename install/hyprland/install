@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 # Hyprland full source install for Debian 13 (Trixie)
 # Single file. Idempotent. Validates tags. No dotfiles/themes.
