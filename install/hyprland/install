@@ -1,41 +1,45 @@
 #!/bin/bash
-# Hyprland installer for Debian Trixie or Sid with live logging and idempotency
-
 set -Eeuo pipefail
 
-OK="$(tput setaf 2)✓$(tput sgr0)"
-ERROR="$(tput setaf 1)✗$(tput sgr0)"
-NOTE="$(tput setaf 3)!$(tput sgr0)"
-INFO="$(tput setaf 4)i$(tput sgr0)"
+# ---------- colored logging ----------
+color(){ tput setaf "$1"; }
+reset(){ tput sgr0; }
+ok(){   printf "%s[%s]%s %s\n" "$(color 2)" "OK"    "$(reset)" "$*"; }
+info(){ printf "%s[%s]%s %s\n" "$(color 4)" "INFO"  "$(reset)" "$*"; }
+note(){ printf "%s[%s]%s %s\n" "$(color 3)" "NOTE"  "$(reset)" "$*"; }
+err(){  printf "%s[%s]%s %s\n" "$(color 1)" "ERR"   "$(reset)" "$*" >&2; }
 
-if [[ $EUID -eq 0 ]]; then
-  echo "${ERROR} Do not run as root. It will sudo when needed."
-  exit 1
-fi
-if ! grep -q 'ID=debian' /etc/os-release; then
-  echo "${ERROR} Debian only."
-  exit 1
-fi
+step(){  printf "\n%s==> %s%s\n" "$(color 6)" "$*" "$(reset)"; }
+doing(){ printf "%s   ->%s %s\n"  "$(color 6)" "$(reset)" "$*"; }
+
+# ---------- guards ----------
+if [[ $EUID -eq 0 ]]; then err "Do not run as root. The script will sudo when needed."; exit 1; fi
+if ! grep -q 'ID=debian' /etc/os-release; then err "Debian only."; exit 1; fi
 
 . /etc/os-release
 if [[ "$VERSION_CODENAME" != "trixie" && "$VERSION_CODENAME" != "sid" && "$VERSION_CODENAME" != "unstable" ]]; then
-  echo "${NOTE} Target is Debian Trixie or Sid. Detected: $PRETTY_NAME"
+  note "Target is Debian Trixie or Sid. Detected: $PRETTY_NAME"
   read -p "Continue anyway? [y/N] " -n 1 -r; echo
   [[ $REPLY =~ ^[Yy]$ ]] || exit 1
 fi
 
+# ---------- logging to file ----------
 mkdir -p Install-Logs
 LOG="Install-Logs/hyprland-install-$(date +%Y%m%d-%H%M%S).log"
-echo "== $(date -Iseconds) starting ==" | tee -a "$LOG"
-
-trap 'echo "${ERROR} Failed on line $LINENO. See $LOG" | tee -a "$LOG"' ERR
+echo "== $(date -Iseconds) start ==" | tee -a "$LOG"
+trap 'err "Failed on line $LINENO. See $LOG"' ERR
 
 export DEBIAN_FRONTEND=noninteractive
 export APT_LISTCHANGES_FRONTEND=none
 
-pkg_installed() { dpkg-query -W -f='${Status}\n' "$1" 2>/dev/null | grep -q "install ok installed"; }
-pkg_available() { apt-cache policy "$1" 2>/dev/null | grep -q "Candidate:" && ! apt-cache policy "$1" | grep -q "(none)"; }
-
+# ---------- apt helpers ----------
+pkg_installed(){ dpkg-query -W -f='${Status}\n' "$1" 2>/dev/null | grep -q "install ok installed"; }
+pkg_available(){
+  local p="$1"
+  local out
+  out="$(apt-cache policy "$p" 2>/dev/null || true)"
+  [[ -n "$out" ]] && echo "$out" | grep -q "Candidate:" && ! echo "$out" | grep -q "(none)"
+}
 need_pkgs(){ local p; for p in "$@"; do pkg_installed "$p" || echo "$p"; done; }
 
 wait_for_apt_lock(){
@@ -43,25 +47,25 @@ wait_for_apt_lock(){
   while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
      || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 \
      || fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
-    echo "${INFO} Waiting for apt locks..." | tee -a "$LOG"
+    info "Waiting for apt locks..." | tee -a "$LOG"
     sleep 1
-    ((tries--)) || { echo "${ERROR} Timeout waiting for apt locks" | tee -a "$LOG"; return 1; }
+    ((tries--)) || { err "Timeout waiting for apt locks" | tee -a "$LOG"; return 1; }
   done
 }
 
 apt_safe(){ wait_for_apt_lock; sudo -E "$@" 2>&1 | tee -a "$LOG"; }
 
 apt_install_missing(){
-  local missing=()
-  while read -r p; do [[ -n $p ]] && missing+=("$p"); done < <(need_pkgs "$@")
-  if ((${#missing[@]})); then
-    echo "${INFO} Installing: ${missing[*]}" | tee -a "$LOG"
+  local miss=()
+  while read -r p; do [[ -n "$p" ]] && miss+=("$p"); done < <(need_pkgs "$@")
+  if ((${#miss[@]})); then
+    doing "Installing: ${miss[*]}"
     apt_safe apt-get update
     sudo dpkg --configure -a 2>&1 | tee -a "$LOG" || true
-    apt_safe apt-get -o Dpkg::Options::=--force-confnew -y install "${missing[@]}"
-    echo "${OK} Packages installed" | tee -a "$LOG"
+    apt_safe apt-get -o Dpkg::Options::=--force-confnew -y install "${miss[@]}"
+    ok "Packages installed"
   else
-    echo "${OK} All packages already present" | tee -a "$LOG"
+    ok "All requested packages already present"
   fi
 }
 
@@ -72,17 +76,30 @@ apt_install_optional(){
     if pkg_available "$p"; then
       pkg_installed "$p" || avail+=("$p")
     else
-      echo "${NOTE} Optional package not in repo: $p" | tee -a "$LOG"
+      note "Optional package not in repo: $p"
     fi
   done
   ((${#avail[@]})) && apt_install_missing "${avail[@]}" || true
 }
 
+# Try first, fall back to second if not available
+apt_install_one_of(){
+  local primary="$1" fallback="$2"
+  if pkg_available "$primary"; then
+    apt_install_missing "$primary"
+  else
+    note "$primary not available in this suite. Using $fallback instead."
+    apt_install_missing "$fallback"
+  fi
+}
+
+# ---------- pause unattended-upgrades during install ----------
 if systemctl is-enabled --quiet unattended-upgrades 2>/dev/null; then
-  echo "${NOTE} Pausing unattended-upgrades during install" | tee -a "$LOG"
+  note "Pausing unattended-upgrades"
   sudo systemctl stop unattended-upgrades 2>/dev/null || true
 fi
 
+# ---------- packages ----------
 BUILD_DEPS=(
   build-essential cmake cmake-extras curl git pkg-config
   libcairo2-dev libdisplay-info-dev libdrm-dev libegl-dev libegl1-mesa-dev
@@ -94,37 +111,43 @@ BUILD_DEPS=(
   libxcb-xfixes0-dev libxcb-xinput-dev libxkbcommon-dev libxkbcommon-x11-dev
   meson ninja-build xwayland
 )
-# This one is missing on your box. Treat as optional.
 OPTIONAL_BUILD_DEPS=( hyprland-protocols )
 
+# Minimal runtime only
 RUNTIME_DEPS=(
   pipewire wireplumber
   wl-clipboard grim slurp
-  xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
+  xdg-desktop-portal xdg-desktop-portal-gtk
   polkit-kde-agent-1
   kitty wofi thunar
 )
-ESSENTIAL_TOOLS=( waybar wlogout brightnessctl pavucontrol playerctl xdg-user-dirs )
 
-echo "${INFO} Install type?
-1) Minimal
-2) Standard" | tee -a "$LOG"
-read -p "Your choice [1-2]: " INSTALL_TYPE; echo
-[[ "$INSTALL_TYPE" != "2" ]] && INSTALL_TYPE=1
-
-echo "${INFO} Ensuring build deps..." | tee -a "$LOG"
+# ---------- install deps ----------
+step "Ensuring build dependencies"
 apt_install_missing "${BUILD_DEPS[@]}"
-echo "${INFO} Trying optional build deps..." | tee -a "$LOG"
+step "Trying optional build dependencies"
 apt_install_optional "${OPTIONAL_BUILD_DEPS[@]}"
-echo "${INFO} Ensuring runtime deps..." | tee -a "$LOG"
+
+step "Ensuring minimal runtime"
 apt_install_missing "${RUNTIME_DEPS[@]}"
-if [[ "$INSTALL_TYPE" == "2" ]]; then
-  echo "${INFO} Ensuring essential tools..." | tee -a "$LOG"
-  apt_install_missing "${ESSENTIAL_TOOLS[@]}"
+
+# portal backend: prefer hyprland, clean fallback to wlr on Trixie
+step "Portal backend"
+doing "Attempting xdg-desktop-portal-hyprland, fallback to xdg-desktop-portal-wlr if unavailable"
+apt_install_one_of xdg-desktop-portal-hyprland xdg-desktop-portal-wlr
+
+# optional Waybar
+read -p "Install Waybar? [y/N] " -n 1 -r; echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  step "Installing Waybar"
+  apt_install_missing waybar
+else
+  note "Skipping Waybar"
 fi
 
+# ---------- NVIDIA handling ----------
 if lspci | grep -qi nvidia; then
-  echo "${INFO} NVIDIA GPU detected." | tee -a "$LOG"
+  step "NVIDIA detected"
   read -p "Configure NVIDIA Wayland support now? [y/N] " -n 1 -r; echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     apt_install_missing nvidia-driver libnvidia-egl-wayland1
@@ -142,11 +165,14 @@ EOF
     ensure_flag "modprobe.blacklist=nouveau"
     ensure_flag "nvidia-drm.modeset=1"
     apt_safe update-grub || true
-    echo "${OK} NVIDIA configured" | tee -a "$LOG"
+    ok "NVIDIA configured"
+  else
+    note "Skipping NVIDIA configuration"
   fi
 fi
 
-HYPRLAND_VERSION="v0.49.0"
+# ---------- build Hyprland ----------
+HYPRLAND_VERSION="v0.49.0"   # keep as-is to avoid surprises
 current=""
 if command -v Hyprland >/dev/null 2>&1; then
   current="$(Hyprland -v 2>/dev/null | sed -nE 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/v\1/p' || true)"
@@ -156,28 +182,32 @@ REBUILD=false
 if [[ -z "$current" ]]; then
   REBUILD=true
 elif [[ "$current" != "$HYPRLAND_VERSION" ]]; then
-  echo "${NOTE} Found Hyprland $current, target $HYPRLAND_VERSION" | tee -a "$LOG"
+  note "Found Hyprland $current, target $HYPRLAND_VERSION"
   read -p "Rebuild to $HYPRLAND_VERSION? [y/N] " -n 1 -r; echo
   [[ $REPLY =~ ^[Yy]$ ]] && REBUILD=true
 fi
 
 if $REBUILD; then
-  echo "${INFO} Building Hyprland $HYPRLAND_VERSION" | tee -a "$LOG"
+  step "Building Hyprland $HYPRLAND_VERSION"
   rm -rf Hyprland 2>/dev/null || true
+  doing "Cloning sources"
   git clone --recursive -b "$HYPRLAND_VERSION" https://github.com/hyprwm/Hyprland 2>&1 | tee -a "$LOG"
   pushd Hyprland >/dev/null
+  doing "Compiling"
   make all 2>&1 | tee -a "../$LOG"
+  doing "Installing"
   sudo make install 2>&1 | tee -a "../$LOG"
   popd >/dev/null
-  echo "${OK} Hyprland installed" | tee -a "$LOG"
+  ok "Hyprland installed"
 else
-  echo "${OK} Hyprland $current already installed - skipping build" | tee -a "$LOG"
+  ok "Hyprland $current already installed - skipping build"
 fi
 
+# ---------- session file ----------
 HYPR_BIN="$(command -v Hyprland || true)"
 if [[ -n "$HYPR_BIN" ]]; then
   if [[ ! -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
-    echo "${INFO} Installing session file" | tee -a "$LOG"
+    step "Installing session entry"
     sudo tee /usr/share/wayland-sessions/hyprland.desktop >/dev/null <<EOF
 [Desktop Entry]
 Name=Hyprland
@@ -185,22 +215,23 @@ Comment=An independent Wayland compositor
 Exec=${HYPR_BIN}
 Type=WaylandSession
 EOF
-    echo "${OK} Session entry ready" | tee -a "$LOG"
+    ok "Session entry ready"
   else
-    echo "${OK} Session entry already exists" | tee -a "$LOG"
+    ok "Session entry already exists"
   fi
 fi
 
+# ---------- seat/logind ----------
 if systemctl is-active --quiet systemd-logind.service; then
   if systemctl is-enabled --quiet seatd.service 2>/dev/null; then
-    echo "${NOTE} Disabling seatd because logind is active" | tee -a "$LOG"
+    note "Disabling seatd because logind is active"
     sudo systemctl disable --now seatd.service 2>&1 | tee -a "$LOG" || true
   else
-    echo "${OK} Using systemd-logind" | tee -a "$LOG"
+    ok "Using systemd-logind"
   fi
 else
   if systemctl list-unit-files | grep -q '^seatd.service'; then
-    echo "${INFO} Enabling seatd" | tee -a "$LOG"
+    step "Enabling seatd"
     sudo systemctl enable --now seatd.service 2>&1 | tee -a "$LOG" || true
     for grp in seat input; do
       if getent group "$grp" >/dev/null && ! id -nG "$USER" | grep -qw "$grp"; then
@@ -210,91 +241,17 @@ else
   fi
 fi
 
-if command -v xdg-user-dirs-update >/dev/null 2>&1; then
-  xdg-user-dirs-update 2>&1 | tee -a "$LOG" || true
-fi
-
-read -p "Write minimal Hyprland config to ~/.config/hypr/hyprland.conf? [Y/n] " -n 1 -r; echo
-if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-  mkdir -p ~/.config/hypr
-  CONFIG_PATH=~/.config/hypr/hyprland.conf
-  [[ -f "$CONFIG_PATH" ]] && cp -a "$CONFIG_PATH" "$CONFIG_PATH.backup.$(date +%Y%m%d%H%M%S)"
-  cat > "$CONFIG_PATH" <<'EOF'
-monitor=,preferred,auto,auto
-env = XCURSOR_SIZE,24
-
-exec-once = sh -lc '[ -x /usr/lib/polkit-kde-authentication-agent-1 ] && /usr/lib/polkit-kde-authentication-agent-1 || true'
-exec-once = sh -lc '[ -x /usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1 ] && /usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1 || true'
-
-exec-once = waybar
-exec-once = kitty
-exec-once = xdg-user-dirs-update
-
-input { kb_layout = us; follow_mouse = 1; touchpad { natural_scroll = false }; sensitivity = 0 }
-
-general { gaps_in = 5; gaps_out = 10; border_size = 2; col.active_border = rgba(33ccffee); col.inactive_border = rgba(595959aa); layout = dwindle }
-decoration { rounding = 5; blur { enabled = true; size = 3; passes = 1 }; drop_shadow = true; shadow_range = 4; shadow_render_power = 3 }
-animations { enabled = true; bezier = myBezier, 0.05, 0.9, 0.1, 1.05; animation = windows, 1, 7, myBezier; animation = windowsOut, 1, 7, default, popin 80%; animation = border, 1, 10, default; animation = fade, 1, 7, default; animation = workspaces, 1, 6, default }
-dwindle { pseudotile = true; preserve_split = true }
-master { new_is_master = true }
-gestures { workspace_swipe = false }
-
-$mainMod = SUPER
-bind = $mainMod, Return, exec, kitty
-bind = $mainMod, SPACE, exec, wofi --show drun
-bind = $mainMod, Q, killactive
-bind = $mainMod, M, exit
-bind = $mainMod, E, exec, thunar
-bind = $mainMod, V, togglefloating
-bind = $mainMod, P, pseudo
-bind = $mainMod, J, togglesplit
-bind = $mainMod, R, exec, hyprctl reload
-
-bind = $mainMod, left, movefocus, l
-bind = $mainMod, right, movefocus, r
-bind = $mainMod, up, movefocus, u
-bind = $mainMod, down, movefocus, d
-
-bind = $mainMod, 1, workspace, 1
-bind = $mainMod, 2, workspace, 2
-bind = $mainMod, 3, workspace, 3
-bind = $mainMod, 4, workspace, 4
-bind = $mainMod, 5, workspace, 5
-bind = $mainMod, 6, workspace, 6
-bind = $mainMod, 7, workspace, 7
-bind = $mainMod, 8, workspace, 8
-bind = $mainMod, 9, workspace, 9
-bind = $mainMod, 0, workspace, 10
-
-bind = $mainMod SHIFT, 1, movetoworkspace, 1
-bind = $mainMod SHIFT, 2, movetoworkspace, 2
-bind = $mainMod SHIFT, 3, movetoworkspace, 3
-bind = $mainMod SHIFT, 4, movetoworkspace, 4
-bind = $mainMod SHIFT, 5, movetoworkspace, 5
-bind = $mainMod SHIFT, 6, movetoworkspace, 6
-bind = $mainMod SHIFT, 7, movetoworkspace, 7
-bind = $mainMod SHIFT, 8, movetoworkspace, 8
-bind = $mainMod SHIFT, 9, movetoworkspace, 9
-bind = $mainMod SHIFT, 0, movetoworkspace, 10
-
-bind = $mainMod, mouse_down, workspace, e+1
-bind = $mainMod, mouse_up, workspace, e-1
-bindm = $mainMod, mouse:272, movewindow
-bindm = $mainMod, mouse:273, resizewindow
-EOF
-  echo "${OK} Wrote ~/.config/hypr/hyprland.conf" | tee -a "$LOG"
-fi
-
+# ---------- resume unattended-upgrades ----------
 if systemctl is-enabled --quiet unattended-upgrades 2>/dev/null; then
   sudo systemctl start unattended-upgrades 2>/dev/null || true
 fi
 
-echo "${OK} Done. Full log at $LOG" | tee -a "$LOG"
-echo "Choose Hyprland in your greeter, or from a TTY run: Hyprland" | tee -a "$LOG"
+ok "Done. Full log at $LOG"
+echo "Choose Hyprland in your greeter, or from a TTY run: Hyprland"
 
 read -p "Reboot now? [y/N] " -n 1 -r; echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-  echo "Rebooting..." | tee -a "$LOG"
+  info "Rebooting..."
   sudo reboot
 fi
 
