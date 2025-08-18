@@ -19,7 +19,7 @@ REENTERED="${1-}"; if [[ "$REENTERED" == "--reentered" ]]; then shift; fi
 if [[ $EUID -eq 0 && -z "${ALLOW_ROOT:-}" ]]; then
   if [[ -n "${SUDO_USER:-}" ]]; then
     say "dropping root, reentering as $SUDO_USER"
-    exec su - "$SUDO_USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} bash '$SCRIPT_SELF' --reentered"
+    exec su - "$SUDO_USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} REPO_GIT='${REPO_GIT-}' REPO_RAW='${REPO_RAW-}' bash '$SCRIPT_SELF' --reentered"
   else
     err "Run as a normal user. The script will escalate only for vitals."
     exit 1
@@ -37,7 +37,6 @@ _su_root() {
 ensure_core_then_reexec() {
   is_debian || return 0
 
-  # If sudo exists, we can install any missing vitals via sudo later
   if have sudo; then
     ok "sudo present"
   else
@@ -47,7 +46,6 @@ ensure_core_then_reexec() {
     fi
     say "installing vitals via su (one pass)"
     _su_root apt-get update -yq || true
-    # VITALS include everything we might call early: usermod, su, coreutils, apt helpers, net, archive tools
     _su_root apt-get install -yq --no-install-recommends \
       sudo passwd login adduser \
       ca-certificates gnupg curl wget \
@@ -56,52 +54,24 @@ ensure_core_then_reexec() {
       iproute2 iputils-ping dnsutils net-tools tzdata locales || true
 
     have sudo || { err "sudo install failed"; exit 1; }
-    # Now usermod exists because passwd got installed
     say "adding $USER to sudo group"
     _su_root usermod -aG sudo "$USER" || true
 
-    # New groups need a new login shell
     say "reentering as $USER to refresh groups"
-    exec su - "$USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} bash '$SCRIPT_SELF' --reentered"
+    exec su - "$USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} REPO_GIT='${REPO_GIT-}' REPO_RAW='${REPO_RAW-}' bash '$SCRIPT_SELF' --reentered"
   fi
 }
 
-# After this point, all priv ops go through sudo
 as_root() {
   if have sudo; then
     sudo -E "$@"
   else
-    # Should not happen because ensure_core_then_reexec installs sudo
     _su_root "$@"
   fi
 }
 
 APT_UPDATED=0
 apt_update_once(){ if [[ $APT_UPDATED -eq 0 ]]; then as_root apt-get update -yq || true; APT_UPDATED=1; fi; }
-
-# Run first
-ensure_core_then_reexec
-
-# Optional: ensure vitals are present even if we had sudo already
-ensure_vitals_with_sudo(){
-  local MISSING=()
-  local pkgs=(
-    passwd login adduser
-    ca-certificates gnupg curl wget
-    coreutils findutils util-linux procps
-    grep gawk sed tar gzip bzip2 xz-utils unzip rsync file less which
-    iproute2 iputils-ping dnsutils net-tools tzdata locales
-  )
-  for p in "${pkgs[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || MISSING+=("$p"); done
-  if ((${#MISSING[@]})); then
-    say "installing missing vitals with sudo: ${#MISSING[@]}"
-    apt_update_once
-    as_root apt-get install -yq --no-install-recommends "${MISSING[@]}" || true
-  else
-    ok "vitals already present"
-  fi
-}
-ensure_vitals_with_sudo
 
 prompt_yes_no(){ # $1=message, return 0 for yes, 1 for no
   local ans
@@ -113,99 +83,196 @@ prompt_yes_no(){ # $1=message, return 0 for yes, 1 for no
 need_debian_pkg(){
   local pkg="$1"
   is_debian || return 0
-  dpkg -s "$pkg" >/dev/null 2>&1 || { as_root apt-get update -y; as_root apt-get install -y "$pkg"; }
+  dpkg -s "$pkg" >/dev/null 2>&1 || { apt_update_once; as_root apt-get install -y "$pkg"; }
+}
+
+ensure_vitals_with_sudo(){
+  local MISSING=()
+  local pkgs=(
+    passwd login adduser
+    ca-certificates gnupg curl wget
+    coreutils findutils util-linux procps
+    grep gawk sed tar gzip bzip2 xz-utils unzip rsync file less which
+    iproute2 iputils-ping dnsutils net-tools tzdata locales
+    git
+  )
+  for p in "${pkgs[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || MISSING+=("$p"); done
+  if ((${#MISSING[@]})); then
+    say "installing missing vitals with sudo: ${#MISSING[@]}"
+    apt_update_once
+    as_root apt-get install -y --no-install-recommends "${MISSING[@]}" || true
+  else
+    ok "vitals already present"
+  fi
 }
 
 ensure_native_zsh(){
   if have zsh; then ok "zsh present ($(command -v zsh))"; return; fi
   if is_debian; then
     say "installing zsh (native)"
-    as_root apt-get update -y
+    apt_update_once
     as_root apt-get install -y zsh
     ok "zsh installed"
   else
-    err "zsh not found and not Debian. Install zsh manually, then re-run."; exit 1
+    err "zsh not found and not Debian. Install zsh manually, then re-run."
+    exit 1
   fi
 }
 
+derive_repo_raw_if_possible(){
+  if [[ -z "${REPO_RAW-}" && -n "${REPO_GIT-}" ]]; then
+    # Support typical GitHub URL shapes
+    if [[ "$REPO_GIT" =~ github.com[:/]+([^/]+)/([^/.]+)(\.git)?$ ]]; then
+      REPO_RAW="https://raw.githubusercontent.com/${BASH_REMATCH[1]}/${BASH_REMATCH[2]}/main"
+    fi
+  fi
+}
+
+# ---------- Dotfiles sync (first things first) ----------
+# Interactively copy both:
+#  1) repo/.config/** into $HOME/.config/**
+#  2) top-level dotfiles at repo root like .zshrc, .tmux.conf, etc.
+clone_dotfiles_tmp(){
+  local tmp
+  tmp="$(mktemp -d)"
+  if [[ -z "${REPO_GIT-}" ]]; then
+    say "dotfiles repo not set. Export REPO_GIT or paste URL."
+    read -r -p "Dotfiles repo URL (leave empty to skip): " REPO_GIT
+    if [[ -z "${REPO_GIT-}" ]]; then
+      say "Skipping dotfiles sync."
+      echo ""
+      return 1
+    fi
+  fi
+  say "cloning dotfiles to $tmp"
+  if ! git clone --depth 1 "$REPO_GIT" "$tmp" >/dev/null 2>&1; then
+    err "git clone failed: $REPO_GIT"
+    rm -rf "$tmp"
+    return 1
+  fi
+  export _DOT_TMP="$tmp"
+  derive_repo_raw_if_possible
+  return 0
+}
+
+copy_one_path(){
+  local src="$1" rel="$2" dest="$HOME/$rel"
+  mkdir -p "$(dirname "$dest")"
+  if [[ -e "$dest" ]]; then
+    if prompt_yes_no "Found $rel. Override it"; then
+      cp -a "$src" "$dest"
+      ok "overwrote: $rel"
+    else
+      say "kept: $rel"
+    fi
+  else
+    cp -a "$src" "$dest"
+    ok "added: $rel"
+  fi
+}
+
+sync_dotfiles_from_repo(){
+  local tmp="$1"
+  # 1) .config files and directories
+  if [[ -d "$tmp/.config" ]]; then
+    while IFS= read -r -d '' path; do
+      rel="${path#$tmp/}"
+      copy_one_path "$path" "$rel"
+    done < <(find "$tmp/.config" -mindepth 1 -maxdepth 999 -print0)
+  else
+    say "no .config directory in repo, skipping .config sync"
+  fi
+
+  # 2) Top-level dotfiles and folders beginning with dot, excluding .git
+  while IFS= read -r -d '' path; do
+    base="$(basename "$path")"
+    [[ "$base" == ".git" ]] && continue
+    [[ "$base" == ".config" ]] && continue
+    rel="${path#$tmp/}"
+    copy_one_path "$path" "$rel"
+  done < <(find "$tmp" -maxdepth 1 -mindepth 1 -name ".*" -print0)
+
+  # 3) Optional: non-hidden top-level files like .editorconfig kept as hidden already
+}
+
+# ---------- Nix install and config ----------
+# Makes nix usable now and persistently enables experimental features
 ensure_nix(){
-  if have nix; then ok "nix present"; else
+  if have nix; then
+    ok "nix present"
+  else
     is_debian && { need_debian_pkg xz-utils; need_debian_pkg ca-certificates; need_debian_pkg curl; need_debian_pkg build-essential; }
     say "installing Nix (single-user)"
+    # The installer will sudo to create /nix if needed
     sh <(curl -L https://nixos.org/nix/install) --no-daemon
   fi
-  # Source nix for this session only. No shell rc edits.
-  [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+
+  # Source nix profile for this session
+  if [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
+    # shellcheck source=/dev/null
+    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+  fi
+
+  # Persist experimental features and allow unfree if you want it
+  mkdir -p "$HOME/.config/nix"
+  {
+    echo "experimental-features = nix-command flakes"
+  } > "$HOME/.config/nix/nix.conf"
+
+  # Make it work immediately for this process
+  export NIX_CONFIG="experimental-features = nix-command flakes"
   export NIXPKGS_ALLOW_UNFREE=1
 }
 
-# Avoid repeated apt-get update calls inside ensure_tool
-APT_UPDATED=0
+# Wrapper that always has experimental features on
+nix_profile_install(){
+  # usage: nix_profile_install nixpkgs#pkg
+  local ref="$1"
+  nix --extra-experimental-features "nix-command flakes" profile install "$ref"
+}
 
+# Install a tool: prefer nix, fallback apt
 ensure_tool(){
-  # prefer nix, fallback apt, do nothing if already present
   local cmd="$1" nix_attr="${2:-}" apt_pkg="${3:-}"
   if have "$cmd"; then ok "$cmd present ($(command -v "$cmd"))"; return 0; fi
+
   if have nix && [[ -n "$nix_attr" ]]; then
     say "nix install $nix_attr"
-    nix profile install "nixpkgs#$nix_attr" || true
-    have "$cmd" && { ok "$cmd installed via nix"; return 0; }
+    if nix_profile_install "nixpkgs#$nix_attr"; then
+      if have "$cmd"; then ok "$cmd installed via nix"; return 0; fi
+    else
+      err "nix failed for $cmd, will try apt if available"
+    fi
   fi
+
   if is_debian && [[ -n "$apt_pkg" ]]; then
     say "apt install $apt_pkg"
-    if [[ ${APT_UPDATED} -eq 0 ]]; then as_root apt-get update -y || true; APT_UPDATED=1; fi
+    apt_update_once
     as_root apt-get install -y "$apt_pkg" || true
-    have "$cmd" && { ok "$cmd installed via apt"; return 0; }
+    if have "$cmd"; then ok "$cmd installed via apt"; return 0; fi
   fi
+
   have "$cmd" || err "failed to install $cmd"
 }
 
-# Language stacks from repo installer scripts, only if missing
+# Language stacks via external scripts only if present
 force_tool(){
   local check_cmd="$1" script_rel="$2"
   if have "$check_cmd"; then ok "$check_cmd present"; return; fi
+  if [[ -z "${REPO_RAW-}" ]]; then
+    err "REPO_RAW not set. Cannot run $script_rel"
+    return 1
+  fi
   say "installing $check_cmd via $script_rel"
   bash <(curl -fsSL "$REPO_RAW/install/arbitrary/$script_rel") || err "$script_rel failed"
   have "$check_cmd" && ok "$check_cmd installed"
 }
 
-# Clone dotfiles to temp and sync only .config/**
-sync_config_tree(){
-  local tmp root src rel dest
-  tmp="$(mktemp -d)"
-  say "cloning dotfiles to $tmp"
-  git clone --depth 1 "$REPO_GIT" "$tmp" >/dev/null 2>&1 || { err "git clone failed"; rm -rf "$tmp"; return 1; }
-
-  root="$tmp/.config"
-  if [[ ! -d "$root" ]]; then
-    err "no .config directory in repo, skipping config sync"
-    rm -rf "$tmp"; return 0
-  fi
-
-  # Copy files only. Prompt before overwriting existing files. Create dirs as needed.
-  while IFS= read -r -d '' src; do
-    rel="${src#$tmp/}"
-    dest="$HOME/$rel"
-    mkdir -p "$(dirname "$dest")"
-    if [[ -e "$dest" ]]; then
-      if prompt_yes_no "Found $rel. Override it"; then
-        cp -a "$src" "$dest"
-        ok "overwrote: $rel"
-      else
-        say "kept: $rel"
-      fi
-    else
-      cp -a "$src" "$dest"
-      ok "added: $rel"
-    fi
-  done < <(find "$root" -type f -print0)
-
-  rm -rf "$tmp"
-}
-
-# Optional restores from other/ (no APT sources or keyrings)
+# Optional restores from other/ lists in your repo
 restore_other_sets(){
-  # APT packages list only - install missing packages
+  [[ -n "${REPO_RAW-}" ]] || { say "REPO_RAW not set, skipping restore sets"; return; }
+
+  # APT packages list only
   if is_debian; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/apt-installed.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       mapfile -t WANT < <(grep -v '^\s*$' "$f")
@@ -213,7 +280,7 @@ restore_other_sets(){
       for p in "${WANT[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || TO_INSTALL+=("$p"); done
       if ((${#TO_INSTALL[@]})); then
         say "apt installing ${#TO_INSTALL[@]} missing packages"
-        as_root apt-get update -y
+        apt_update_once
         as_root apt-get install -y "${TO_INSTALL[@]}" || true
       else
         ok "no missing apt packages"
@@ -222,7 +289,7 @@ restore_other_sets(){
     fi
   fi
 
-  # Snap - idempotent
+  # snap
   if have snap; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/snap-list.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       awk 'NR>1 {print $1}' "$f" | while read -r s; do [[ -n "$s" ]] && as_root snap install "$s" || true; done
@@ -230,7 +297,7 @@ restore_other_sets(){
     fi
   fi
 
-  # Flatpak - idempotent
+  # flatpak
   if have flatpak; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/flatpak-remotes-system.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       awk 'NR>1{print $1,$2}' "$f" | while read -r name url; do flatpak remote-add --if-not-exists "$name" "$url" --system || true; done
@@ -273,13 +340,15 @@ PY
     fi
   fi
 
-  # npm and pnpm globals - harmless if already installed
+  # npm
   if have npm; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/npm-global.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       xargs -a "$f" -r npm i -g || true
       rm -f "$f"
     fi
   fi
+
+  # pnpm
   if have pnpm; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/pnpm-global.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       xargs -a "$f" -r pnpm add -g || true
@@ -303,99 +372,103 @@ PY
     fi
   fi
 
-  # Nix profile installs (best effort)
+  # Nix profile installs
   if have nix; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/nix-profile.txt" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       while read -r name; do
         [[ -z "$name" ]] && continue
-        nix profile install "nixpkgs#${name}" || true
+        nix_profile_install "nixpkgs#$name" || true
       done < "$f"
       rm -f "$f"
     fi
   fi
 }
 
+# ---------- Start ----------
+ensure_core_then_reexec
+ensure_vitals_with_sudo
 ensure_native_zsh
+
+# Dotfiles first
+if clone_dotfiles_tmp; then
+  sync_dotfiles_from_repo "$_DOT_TMP"
+  rm -rf "$_DOT_TMP"
+fi
+
+# Nix with experimental features enabled
 ensure_nix
 
 say "installing base tools if missing"
-ensure_tool git git git
-ensure_tool curl curl curl
-ensure_tool wget wget wget
-ensure_tool nvim neovim neovim
-ensure_tool tmux tmux tmux
-ensure_tool bat bat bat
-ensure_tool rg ripgrep ripgrep
-ensure_tool eza eza ""
-ensure_tool fd fd fd-find
-ensure_tool xclip xclip xclip
-ensure_tool htop htop htop
-ensure_tool btop btop btop
-ensure_tool tree tree tree
-ensure_tool direnv direnv direnv
-ensure_tool fzf fzf fzf
-ensure_tool man man-db man-db
-ensure_tool python3 python3 python3
-ensure_tool ssh openssh openssh-client
-ensure_tool zathura zathura zathura
-ensure_tool nmap nmap nmap
-ensure_tool tor tor tor
-ensure_tool feh feh feh
-ensure_tool picom picom picom
-ensure_tool i3 i3 i3-wm
+# Prefer Nix, fallback apt
+ensure_tool git        git        git
+ensure_tool curl       curl       curl
+ensure_tool wget       wget       wget
+ensure_tool nvim       neovim     neovim
+ensure_tool tmux       tmux       tmux
+ensure_tool bat        bat        bat
+ensure_tool rg         ripgrep    ripgrep
+ensure_tool eza        eza        eza
+ensure_tool fd         fd         fd-find
+ensure_tool xclip      xclip      xclip
+ensure_tool htop       htop       htop
+ensure_tool btop       btop       btop
+ensure_tool tree       tree       tree
+ensure_tool direnv     direnv     direnv
+ensure_tool fzf        fzf        fzf
+ensure_tool man        man-db     man-db
+ensure_tool python3    python3    python3
+ensure_tool ssh        openssh    openssh-client
+ensure_tool zathura    zathura    zathura
+ensure_tool nmap       nmap       nmap
+ensure_tool tor        tor        tor
+ensure_tool feh        feh        feh
+ensure_tool picom      picom      picom
+ensure_tool i3         i3         i3-wm
 ok "base tools done"
 
-# Obsidian forced if missing
-if ! have obsidian; then
-  say "installing Obsidian"
-  export NIXPKGS_ALLOW_INSECURE=1
-  export NIXPKGS_ALLOW_UNFREE=1
-  bash <(curl -fsSL "$REPO_RAW/install/proprietary/obsidian") || err "Obsidian installer failed"
+# Optional proprietary installs using your repo installers
+if [[ -n "${REPO_RAW-}" ]]; then
+  if ! have obsidian; then
+    say "installing Obsidian"
+    export NIXPKGS_ALLOW_UNFREE=1
+    bash <(curl -fsSL "$REPO_RAW/install/proprietary/obsidian") || err "Obsidian installer failed"
+  else
+    ok "obsidian present"
+  fi
 else
-  ok "obsidian present"
+  say "REPO_RAW not set, skipping proprietary installers"
 fi
 
 # TPM - only if missing
-[[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+[[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm" >/dev/null 2>&1 || true
 
-# ensure OMZ custom plugins exist
+# ensure OMZ custom plugins exist if Oh My Zsh is present
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 ZCUST="$ZSH_CUSTOM/plugins"
 mkdir -p "$ZCUST"
+[[ -d "$ZCUST/zsh-autosuggestions" ]] || git clone https://github.com/zsh-users/zsh-autosuggestions "$ZCUST/zsh-autosuggestions" >/dev/null 2>&1 || true
+[[ -d "$ZCUST/zsh-syntax-highlighting" ]] || git clone https://github.com/zsh-users/zsh-syntax-highlighting" "$ZCUST/zsh-syntax-highlighting" >/dev/null 2>&1 || true
 
-[[ -d "$ZCUST/zsh-autosuggestions" ]] || \
-  git clone https://github.com/zsh-users/zsh-autosuggestions "$ZCUST/zsh-autosuggestions"
+# Optional language stacks from your repo
+force_tool conda     "conda"
+force_tool node      "node"
+force_tool pnpm      "pnpm"
+force_tool poetry    "poetry"
+force_tool go        "go"
+force_tool terraform "terraform"
+force_tool bun       "bun"
 
-[[ -d "$ZCUST/zsh-syntax-highlighting" ]] || \
-  git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZCUST/zsh-syntax-highlighting"
-
-ask_install() { # $1=tool name, $2=check command, $3=install command
-  if command -v "$2" >/dev/null 2>&1; then
-    ok "$1 present"
-  else
-    read -r -p "Install $1? [y/N] " ans
-    if [[ "$ans" =~ ^[Yy]$ ]]; then
-      eval "$3" || err "$1 install failed"
-    else
-      say "Skipped $1"
-    fi
-  fi
-}
-
-ask_install "conda"     conda     "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/conda\")"
-ask_install "node"      node      "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/node\")"
-ask_install "pnpm"      pnpm      "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/pnpm\")"
-ask_install "poetry"    poetry    "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/poetry\")"
-ask_install "go"        go        "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/go\")"
-ask_install "terraform" terraform "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/terraform\")"
-ask_install "bun"       bun       "bash <(curl -fsSL \"$REPO_RAW/install/arbitrary/bun\")"
-
+# Rust optional
 if have cargo || have rustup; then
   ok "rust present"
 else
-  read -r -p "Install rust? [y/N] " ans
-  if [[ "$ans" =~ ^[Yy]$ ]]; then
-    bash <(curl -fsSL "$REPO_RAW/install/arbitrary/rust") || err "rust install failed"
+  if prompt_yes_no "Install rust"; then
+    if [[ -n "${REPO_RAW-}" ]]; then
+      bash <(curl -fsSL "$REPO_RAW/install/arbitrary/rust") || err "rust install failed"
+    else
+      say "Installing rustup from upstream"
+      curl -fsSL https://sh.rustup.rs | sh -s -- -y || true
+    fi
   else
     say "Skipped rust"
   fi
@@ -412,8 +485,11 @@ fi
 # Optional GNOME extras and keybindings
 is_gnome_session(){ [[ "${XDG_CURRENT_DESKTOP:-}${XDG_SESSION_DESKTOP:-}" =~ GNOME ]] || pgrep -x gnome-shell >/dev/null 2>&1; }
 if is_gnome_session && prompt_yes_no "GNOME detected. Install GNOME extras and load keybindings from repo/other"; then
-  is_debian && { as_root apt-get update -y; as_root apt-get install -y gnome-tweaks gnome-shell-extensions dconf-cli || true; }
-  if have dconf; then
+  if is_debian; then
+    apt_update_once
+    as_root apt-get install -y gnome-tweaks gnome-shell-extensions dconf-cli || true
+  fi
+  if have dconf && [[ -n "${REPO_RAW-}" ]]; then
     if f="$(mktemp)"; curl -fsSL "$REPO_RAW/other/keybindings.dconf" -o "$f" 2>/dev/null && [[ -s "$f" ]]; then
       if prompt_yes_no "Apply repo keybindings to your GNOME settings"; then
         dconf load /org/gnome/settings-daemon/plugins/media-keys/ < "$f" || true
@@ -423,18 +499,19 @@ if is_gnome_session && prompt_yes_no "GNOME detected. Install GNOME extras and l
   fi
 fi
 
-# Sync .config tree with prompts per file
-sync_config_tree
-
 # Optional restores for packages and tooling (no sources or keyrings)
 restore_other_sets
 
 # SSH keys prompt
 if prompt_yes_no "Set up GitHub SSH keys now"; then
-  bash <(curl -fsSL "$REPO_RAW/.ssh/_gh_gen.sh") || err "SSH key setup failed"
-  ok "SSH keys done"
+  if [[ -n "${REPO_RAW-}" ]]; then
+    bash <(curl -fsSL "$REPO_RAW/.ssh/_gh_gen.sh") || err "SSH key setup failed"
+  else
+    say "REPO_RAW not set; skipping SSH helper"
+  fi
+  ok "SSH keys step done"
 else
-  say "skip SSH keys; run: bash <(curl -fsSL $REPO_RAW/.ssh/_gh_gen.sh) when ready"
+  say "skip SSH keys; run your helper when ready"
 fi
 
 mkdir -p "$HOME"/{work,trash,personal}
