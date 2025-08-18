@@ -129,27 +129,25 @@ derive_repo_raw_if_possible(){
 }
 
 # ---------- Dotfiles sync (first things first) ----------
-# Interactively copy both:
-#  1) repo/.config/** into $HOME/.config/**
-#  2) top-level dotfiles at repo root like .zshrc, .tmux.conf, etc.
 clone_dotfiles_tmp(){
   local tmp
   tmp="$(mktemp -d)"
-  if [[ -z "${REPO_GIT-}" ]]; then
-    say "dotfiles repo not set. Export REPO_GIT or paste URL."
-    read -r -p "Dotfiles repo URL (leave empty to skip): " REPO_GIT
-    if [[ -z "${REPO_GIT-}" ]]; then
-      say "Skipping dotfiles sync."
-      echo ""
-      return 1
-    fi
+  local repo="https://github.com/ashgw/dotfiles.git"
+
+  read -r -p "Do you want to sync dotfiles from $repo? [y/N]: " choice
+  if [[ ! "$choice" =~ ^[Yy]$ ]]; then
+    say "Skipping dotfiles sync."
+    echo ""
+    return 1
   fi
+
   say "cloning dotfiles to $tmp"
-  if ! git clone --depth 1 "$REPO_GIT" "$tmp" >/dev/null 2>&1; then
-    err "git clone failed: $REPO_GIT"
+  if ! git clone --depth 1 "$repo" "$tmp" >/dev/null 2>&1; then
+    err "git clone failed: $repo"
     rm -rf "$tmp"
     return 1
   fi
+
   export _DOT_TMP="$tmp"
   derive_repo_raw_if_possible
   return 0
