@@ -30,17 +30,6 @@ derive_repo_raw_if_possible(){
 }
 derive_repo_raw_if_possible
 
-# ---------- drop root ----------
-if [[ $EUID -eq 0 && -z "${ALLOW_ROOT:-}" ]]; then
-  if [[ -n "${SUDO_USER:-}" ]]; then
-    say "dropping root, reentering as $SUDO_USER"
-    exec su - "$SUDO_USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} REPO_GIT='${REPO_GIT-}' REPO_RAW='${REPO_RAW-}' bash '$SCRIPT_SELF' --reentered"
-  else
-    err "Run as a normal user. The script will escalate only for vitals."
-    exit 1
-  fi
-fi
-
 # ---------- minimal su / sudo helpers ----------
 _su_root() { local q cmd=""; for q in "$@"; do cmd+=" $(printf "%q" "$q")"; done; su -pc "${cmd# }" root; }
 as_root(){ if have sudo; then sudo -E "$@"; else _su_root "$@"; fi; }
@@ -52,6 +41,50 @@ prompt_yes_no(){ local ans; [[ "${BOOTSTRAP_ASSUME_YES:-0}" == "1" ]] && return 
 
 need_debian_pkg(){ is_debian || return 0; dpkg -s "$1" >/dev/null 2>&1 || { apt_update_once; as_root apt-get install -y "$1"; }; }
 
+# ---------- drop root early ----------
+if [[ $EUID -eq 0 && -z "${ALLOW_ROOT:-}" ]]; then
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    say "dropping root, reentering as $SUDO_USER"
+    exec su - "$SUDO_USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} REPO_GIT='${REPO_GIT-}' REPO_RAW='${REPO_RAW-}' bash '$SCRIPT_SELF' --reentered"
+  else
+    err "Run as a normal user. The script will escalate only for vitals."
+    exit 1
+  fi
+fi
+
+# ---------- Nix env sourcing helpers ----------
+nix_source_env(){
+  if [[ -e "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]]; then
+    # shellcheck source=/dev/null
+    . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+  elif [[ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
+    # shellcheck source=/dev/null
+    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+  fi
+  hash -r 2>/dev/null || true
+}
+persist_nix_shell_integration(){
+  # Make future shells pick Nix up
+  local line='. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh 2>/dev/null || :'
+  grep -Fq "$line" "$HOME/.profile" 2>/dev/null || echo "$line" >> "$HOME/.profile"
+  if [[ -n "${ZDOTDIR-}" ]]; then
+    grep -Fq "$line" "$ZDOTDIR/.zshrc" 2>/dev/null || echo "$line" >> "$ZDOTDIR/.zshrc"
+  else
+    grep -Fq "$line" "$HOME/.zshrc" 2>/dev/null || echo "$line" >> "$HOME/.zshrc"
+  fi
+}
+write_user_nix_conf(){
+  mkdir -p "$HOME/.config/nix"
+  local f="$HOME/.config/nix/nix.conf"
+  if ! grep -q 'experimental-features' "$f" 2>/dev/null; then
+    printf "%s\n" "extra-experimental-features = nix-command flakes" >> "$f"
+  fi
+}
+
+# Source Nix right away if it already exists
+nix_source_env
+
+# ---------- ensure core, sudo, zsh ----------
 ensure_core_then_reexec(){
   is_debian || return 0
   if have sudo; then ok "sudo present"; return; fi
@@ -63,14 +96,13 @@ ensure_core_then_reexec(){
       ca-certificates gnupg curl wget \
       coreutils findutils util-linux procps \
       grep gawk sed tar gzip bzip2 xz-utils unzip rsync file less which \
-      iproute2 iputils-ping dnsutils net-tools tzdata locales || true
+      iproute2 iputils-ping dnsutils net-tools tzdata locales git || true
   have sudo || { err "sudo install failed"; exit 1; }
   say "adding $USER to sudo group"
   _su_root usermod -aG sudo "$USER" || true
   say "reentering as $USER to refresh groups"
   exec su - "$USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} REPO_GIT='${REPO_GIT-}' REPO_RAW='${REPO_RAW-}' bash '$SCRIPT_SELF' --reentered"
 }
-
 ensure_vitals_with_sudo(){
   local pkgs=(
     passwd login adduser
@@ -78,7 +110,7 @@ ensure_vitals_with_sudo(){
     coreutils findutils util-linux procps
     grep gawk sed tar gzip bzip2 xz-utils unzip rsync file less which
     iproute2 iputils-ping dnsutils net-tools tzdata locales
-    git
+    git zsh
   )
   local missing=(); for p in "${pkgs[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p"); done
   if ((${#missing[@]})); then
@@ -86,33 +118,18 @@ ensure_vitals_with_sudo(){
     apt_update_once; as_root apt-get install -y --no-install-recommends "${missing[@]}" || true
   else ok "vitals already present"; fi
 }
-
-ensure_native_zsh(){
-  if have zsh; then ok "zsh present ($(command -v zsh))"; return; fi
-  is_debian || { err "zsh not found and not Debian. Install zsh manually, then re-run."; exit 1; }
-  say "installing zsh (native)"; apt_update_once; as_root apt-get install -y zsh; ok "zsh installed"
-}
+ensure_core_then_reexec
+ensure_vitals_with_sudo
 
 # ---------- Nix: detect, repair/uninstall, install, source ----------
-nix_source_env(){
-  if [[ -e "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]]; then
-    # shellcheck source=/dev/null
-    . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
-  elif [[ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
-    # shellcheck source=/dev/null
-    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-  fi
-}
-
 nix_cleanup_manual(){
-  warn "manual Nix cleanup (best-effort)"
+  warn "manual Nix cleanup (best effort)"
   as_root systemctl stop nix-daemon 2>/dev/null || true
   as_root systemctl disable nix-daemon 2>/dev/null || true
   as_root rm -rf /etc/nix /nix 2>/dev/null || true
   rm -rf "$HOME/.nix-profile" "$HOME/.nix-defexpr" "$HOME/.nix-channels" "$HOME/.local/state/nix/profiles" 2>/dev/null || true
   as_root rm -f /etc/profile.d/nix.sh 2>/dev/null || true
 }
-
 nix_repair_or_uninstall(){
   if [[ -x /nix/nix-installer ]]; then
     warn "attempting nix repair first"
@@ -124,30 +141,38 @@ nix_repair_or_uninstall(){
     nix_cleanup_manual
   fi
 }
-
 ensure_nix(){
-  # If nix already works, do nothing
-  if have nix; then ok "nix present ($(nix --version 2>/dev/null || true))"; nix_source_env; return; fi
-
-  # Broken/partial? (folder or state exists but no command)
-  if [[ -d /nix || -d "$HOME/.nix-profile" || -d "$HOME/.local/state/nix/profiles" || -d /etc/nix ]]; then
-    warn "Nix artifacts detected but command missing → cleaning"
-    nix_repair_or_uninstall
-  fi
-
-  # Fresh install using Determinate Nix Installer (flakes on, uninstall available)
-  say "installing Nix (multi-user, systemd if present)"
-  if curl --proto '=https' --tlsv1.2 -fsSL https://install.determinate.systems/nix | \
-     sh -s -- install ${BOOTSTRAP_ASSUME_YES:+--no-confirm}; then
-    ok "Nix installed"
+  if have nix; then
+    nix_source_env
+    ok "nix present ($(nix --version 2>/dev/null || echo 'unknown'))"
   else
-    err "Nix install failed"; return 1
+    if [[ -d /nix || -d "$HOME/.nix-profile" || -d "$HOME/.local/state/nix/profiles" || -d /etc/nix ]]; then
+      warn "Nix artifacts detected but command missing -> cleaning"
+      nix_repair_or_uninstall
+    fi
+    say "installing Nix (Determinate, multi-user)"
+    if curl --proto '=https' --tlsv1.2 -fsSL https://install.determinate.systems/nix | \
+       sh -s -- install ${BOOTSTRAP_ASSUME_YES:+--no-confirm}; then
+      ok "Nix installed"
+    else
+      err "Nix install failed"; return 1
+    fi
+    nix_source_env
   fi
 
-  nix_source_env
-  have nix || { err "nix still not on PATH after install"; exit 1; }
+  # daemon alive on systemd
+  if is_systemd; then
+    systemctl --user 2>/dev/null >/dev/null || true
+    as_root systemctl enable nix-daemon >/dev/null 2>&1 || true
+    as_root systemctl start nix-daemon  >/dev/null 2>&1 || true
+  fi
 
-  # Make flakes usable immediately in this shell
+  write_user_nix_conf
+  persist_nix_shell_integration
+  nix_source_env
+  hash -r 2>/dev/null || true
+  have nix || { err "nix still not on PATH"; exit 1; }
+  ok "nix ok: $(nix --version)"
   export NIX_CONFIG="experimental-features = nix-command flakes"
 }
 
@@ -158,11 +183,15 @@ ensure_tool(){
   local cmd="$1" nix_attr="${2:-}" apt_pkg="${3:-}"
   if have "$cmd"; then ok "$cmd present ($(command -v "$cmd"))"; return 0; fi
   if have nix && [[ -n "$nix_attr" ]]; then
-    say "nix install $nix_attr"
+    say "nix profile install nixpkgs#$nix_attr"
     if nix_profile_install "nixpkgs#$nix_attr"; then have "$cmd" && { ok "$cmd via nix"; return 0; }; else warn "nix failed for $cmd"; fi
   fi
   if is_debian && [[ -n "$apt_pkg" ]]; then
     say "apt install $apt_pkg"; apt_update_once; as_root apt-get install -y "$apt_pkg" || true
+    # Debian quirk: fd-find provides fdfind
+    if [[ "$cmd" == "fd" && ! -x "$(command -v fd 2>/dev/null)" && -x "$(command -v fdfind 2>/dev/null)" ]]; then
+      as_root ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+    fi
     have "$cmd" && { ok "$cmd via apt"; return 0; }
   fi
   have "$cmd" || err "failed to install $cmd"
@@ -178,7 +207,6 @@ force_tool(){
 }
 
 # ---------- dotfiles sync ----------
-# deep compare helpers
 dir_differs(){ [[ ! -d "$2" ]] && return 0; rsync -rcni --delete --exclude ".git/" "$1/" "$2/" | grep -qE '^[<>ch*]'; }
 file_differs(){ [[ ! -e "$2" ]] && return 0; cmp -s "$1" "$2" && return 1 || return 0; }
 
@@ -237,17 +265,12 @@ sync_dotfiles_from_repo(){
 }
 
 # ---------- Start ----------
-ensure_core_then_reexec
-ensure_vitals_with_sudo
-ensure_native_zsh
+ensure_nix   # do Nix early so PATH is hot
 
 # Dotfiles first
 if clone_dotfiles_tmp; then
   say "==> Syncing dotfiles"; sync_dotfiles_from_repo "$_DOT_TMP"; rm -rf "$_DOT_TMP"
 fi
-
-# Nix (idempotent; repair/uninstall if corrupted; fresh install otherwise)
-ensure_nix
 
 say "installing base tools if missing"
 ensure_tool git        git        git
@@ -276,14 +299,19 @@ ensure_tool picom      picom      picom
 ensure_tool i3         i3         i3-wm
 ok "base tools done"
 
-# Optional proprietary installs using your repo installers
-# if [[ -n "${REPO_RAW-}" ]]; then
-#   if ! have obsidian; then
-#     say "installing Obsidian"
-#     export NIXPKGS_ALLOW_UNFREE=1
-#     bash <(curl -fsSL "$REPO_RAW/install/proprietary/obsidian") || err "Obsidian installer failed"
-#   else ok "obsidian present"; fi
-# else say "REPO_RAW not set, skipping proprietary installers"; fi
+# ---------- Optional proprietary installs (prompted) ----------
+install_obsidian_prompt(){
+  if have obsidian; then ok "obsidian present"; return 0; fi
+  if prompt_yes_no "Install Obsidian now via Nix (unfree)"; then
+    say "installing Obsidian with a one-shot unfree allow"
+    NIXPKGS_ALLOW_UNFREE=1 nix --extra-experimental-features "nix-command flakes" \
+      profile install nixpkgs#obsidian --impure || err "Obsidian install failed"
+    have obsidian && ok "Obsidian installed" || warn "Obsidian not found after install"
+  else
+    say "Skipped Obsidian"
+  fi
+}
+install_obsidian_prompt
 
 # TPM - only if missing
 [[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm" >/dev/null 2>&1 || true
@@ -324,14 +352,6 @@ if is_gnome_session && prompt_yes_no "GNOME detected. Install GNOME extras and l
     fi
   fi
 fi
-
-# Optional restores for packages and tooling
-restore_other_sets(){
-  [[ -n "${REPO_RAW-}" ]] || { say "REPO_RAW not set, skipping restore sets"; return; }
-  # (same as before; omitted for brevity in this block)
-}
-# call if you want restores:
-# restore_other_sets
 
 # SSH keys prompt
 if prompt_yes_no "Set up GitHub SSH keys now"; then
