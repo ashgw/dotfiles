@@ -1,79 +1,72 @@
+
 #!/bin/bash
-# Hyprland installer for Debian Trixie or Sid (minimal + optional Waybar)
-# - colored step logging
-# - idempotent package/build logic
-# - prefers xdg-desktop-portal-hyprland, falls back to -wlr on Trixie
-# - ensures aquamarine + hyprwayland-scanner when not in repos
-# - removed writing of ~/.config/hypr/hyprland.conf
+# Hyprland minimal installer for Debian Trixie/Sid with live logging & idempotency
+# - Minimal by default; optionally install Waybar
+# - Builds missing pieces (hyprwayland-scanner, hyprutils>=0.8) automatically
+# - Fallbacks for xdg-desktop-portal-hyprland
+# - No config file writing
 
 set -Eeuo pipefail
 
-# ---------- colored logging ----------
-color(){ tput setaf "$1"; }
-reset(){ tput sgr0; }
-ok(){   printf "%s[%s]%s %s\n" "$(color 2)" "OK"    "$(reset)" "$*"; }
-info(){ printf "%s[%s]%s %s\n" "$(color 4)" "INFO"  "$(reset)" "$*"; }
-note(){ printf "%s[%s]%s %s\n" "$(color 3)" "NOTE"  "$(reset)" "$*"; }
-err(){  printf "%s[%s]%s %s\n" "$(color 1)" "ERR"   "$(reset)" "$*" >&2; }
-
-step(){  printf "\n%s==> %s%s\n" "$(color 6)" "$*" "$(reset)"; }
-doing(){ printf "%s   ->%s %s\n"  "$(color 6)" "$(reset)" "$*"; }
+OK="$(tput setaf 2)✓$(tput sgr0)"
+ERROR="$(tput setaf 1)✗$(tput sgr0)"
+NOTE="$(tput setaf 3)!$(tput sgr0)"
+INFO="$(tput setaf 4)i$(tput sgr0)"
 
 # ---------- guards ----------
-if [[ $EUID -eq 0 ]]; then err "Do not run as root. The script will sudo when needed."; exit 1; fi
-if ! grep -q 'ID=debian' /etc/os-release; then err "Debian only."; exit 1; fi
+if [[ $EUID -eq 0 ]]; then
+  echo "${ERROR} Do not run as root. It will sudo when needed."
+  exit 1
+fi
+if ! grep -q 'ID=debian' /etc/os-release; then
+  echo "${ERROR} Debian only."
+  exit 1
+fi
 
 . /etc/os-release
 if [[ "$VERSION_CODENAME" != "trixie" && "$VERSION_CODENAME" != "sid" && "$VERSION_CODENAME" != "unstable" ]]; then
-  note "Target is Debian Trixie or Sid. Detected: $PRETTY_NAME"
+  echo "${NOTE} Target is Debian Trixie or Sid. Detected: $PRETTY_NAME"
   read -p "Continue anyway? [y/N] " -n 1 -r; echo
   [[ $REPLY =~ ^[Yy]$ ]] || exit 1
 fi
 
-# ---------- logging to file ----------
 mkdir -p Install-Logs
 LOG="Install-Logs/hyprland-install-$(date +%Y%m%d-%H%M%S).log"
 echo "== $(date -Iseconds) start ==" | tee -a "$LOG"
-trap 'err "Failed on line $LINENO. See $LOG"' ERR
+
+trap 'echo "${ERROR} Failed on line $LINENO. See $LOG" | tee -a "$LOG"' ERR
 
 export DEBIAN_FRONTEND=noninteractive
 export APT_LISTCHANGES_FRONTEND=none
 
-# ---------- apt helpers ----------
-pkg_installed(){ dpkg-query -W -f='${Status}\n' "$1" 2>/dev/null | grep -q "install ok installed"; }
-pkg_available(){
-  local out; out="$(apt-cache policy "$1" 2>/dev/null || true)"
-  [[ -n "$out" ]] && grep -q "Candidate:" <<<"$out" && ! grep -q "(none)" <<<"$out"
-}
+# ---------- helpers ----------
+pkg_installed() { dpkg-query -W -f='${Status}\n' "$1" 2>/dev/null | grep -q "install ok installed"; }
+pkg_available() { apt-cache policy "$1" 2>/dev/null | grep -q "Candidate:" && ! apt-cache policy "$1" | grep -q "(none)"; }
 need_pkgs(){ local p; for p in "$@"; do pkg_installed "$p" || echo "$p"; done; }
-
 wait_for_apt_lock(){
   local tries=120
   while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
      || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 \
      || fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
-    info "Waiting for apt locks..." | tee -a "$LOG"
+    echo "${INFO} Waiting for apt locks..." | tee -a "$LOG"
     sleep 1
-    ((tries--)) || { err "Timeout waiting for apt locks" | tee -a "$LOG"; return 1; }
+    ((tries--)) || { echo "${ERROR} Timeout waiting for apt locks" | tee -a "$LOG"; return 1; }
   done
 }
-
 apt_safe(){ wait_for_apt_lock; sudo -E "$@" 2>&1 | tee -a "$LOG"; }
-
 apt_install_missing(){
-  local miss=()
-  while read -r p; do [[ -n "$p" ]] && miss+=("$p"); done < <(need_pkgs "$@")
-  if ((${#miss[@]})); then
-    doing "Installing: ${miss[*]}"
+  local missing=()
+  while read -r p; do [[ -n $p ]] && missing+=("$p"); done < <(need_pkgs "$@")
+  if ((${#missing[@]})); then
+    echo "${INFO} Installing: ${missing[*]}" | tee -a "$LOG"
     apt_safe apt-get update
     sudo dpkg --configure -a 2>&1 | tee -a "$LOG" || true
-    apt_safe apt-get -o Dpkg::Options::=--force-confnew -y install "${miss[@]}"
-    ok "Packages installed"
+    apt_safe apt-get -o Dpkg::Options::=--force-confnew -y install "${missing[@]}"
+    echo "${OK} Packages installed" | tee -a "$LOG"
   else
-    ok "All requested packages already present"
+    echo "${OK} All packages already present" | tee -a "$LOG"
   fi
 }
-
 apt_install_optional(){
   local avail=()
   local p
@@ -81,30 +74,20 @@ apt_install_optional(){
     if pkg_available "$p"; then
       pkg_installed "$p" || avail+=("$p")
     else
-      note "Optional package not in repo: $p"
+      echo "${NOTE} Optional package not in repo: $p" | tee -a "$LOG"
     fi
   done
   ((${#avail[@]})) && apt_install_missing "${avail[@]}" || true
 }
 
-# Try first, fall back to second if not available
-apt_install_one_of(){
-  local primary="$1" fallback="$2"
-  if pkg_available "$primary"; then
-    apt_install_missing "$primary"
-  else
-    note "$primary not available in this suite. Using $fallback instead."
-    apt_install_missing "$fallback"
-  fi
-}
-
-# ---------- pause unattended-upgrades during install ----------
+# ---------- pause unattended-upgrades ----------
 if systemctl is-enabled --quiet unattended-upgrades 2>/dev/null; then
-  note "Pausing unattended-upgrades"
+  echo "${NOTE} Pausing unattended-upgrades during install" | tee -a "$LOG"
   sudo systemctl stop unattended-upgrades 2>/dev/null || true
 fi
 
-# ---------- packages ----------
+# ---------- deps ----------
+# Add missing devs seen in your error logs: libpugixml-dev (for hyprwayland-scanner), libudis86-dev (for Hyprland)
 BUILD_DEPS=(
   build-essential cmake cmake-extras curl git pkg-config
   libcairo2-dev libdisplay-info-dev libdrm-dev libegl-dev libegl1-mesa-dev
@@ -114,47 +97,119 @@ BUILD_DEPS=(
   libxcb-composite0-dev libxcb-cursor-dev libxcb-dri3-dev libxcb-ewmh-dev
   libxcb-icccm4-dev libxcb-present-dev libxcb-render-util0-dev
   libxcb-xfixes0-dev libxcb-xinput-dev libxkbcommon-dev libxkbcommon-x11-dev
-  libudis86-dev
-  libpugixml-dev
   meson ninja-build xwayland
+  libpugixml-dev libudis86-dev
 )
-OPTIONAL_BUILD_DEPS=( hyprland-protocols )
 
-# Minimal runtime only
 RUNTIME_DEPS=(
   pipewire wireplumber
   wl-clipboard grim slurp
   xdg-desktop-portal xdg-desktop-portal-gtk
   polkit-kde-agent-1
   kitty wofi thunar
+  hwdata
 )
 
-# ---------- install deps ----------
-step "Ensuring build dependencies"
+echo "${INFO} Ensuring build deps..." | tee -a "$LOG"
 apt_install_missing "${BUILD_DEPS[@]}"
-step "Trying optional build dependencies"
-apt_install_optional "${OPTIONAL_BUILD_DEPS[@]}"
-
-step "Ensuring minimal runtime"
+echo "${INFO} Ensuring runtime deps..." | tee -a "$LOG"
 apt_install_missing "${RUNTIME_DEPS[@]}"
 
-# portal backend: prefer hyprland, clean fallback to wlr on Trixie
-step "Portal backend"
-doing "Attempting xdg-desktop-portal-hyprland, fallback to xdg-desktop-portal-wlr if unavailable"
-apt_install_one_of xdg-desktop-portal-hyprland xdg-desktop-portal-wlr
-
-# optional Waybar
-read -p "Install Waybar? [y/N] " -n 1 -r; echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  step "Installing Waybar"
-  apt_install_missing waybar
+# Try the Hypr portal; if not present in this suite, fall back to wlr
+if pkg_available xdg-desktop-portal-hyprland; then
+  echo "${INFO} Attempting xdg-desktop-portal-hyprland" | tee -a "$LOG"
+  apt_install_missing xdg-desktop-portal-hyprland
 else
-  note "Skipping Waybar"
+  echo "${NOTE} xdg-desktop-portal-hyprland not available in this suite. Using xdg-desktop-portal-wlr instead." | tee -a "$LOG"
+  apt_install_optional xdg-desktop-portal-wlr
 fi
 
-# ---------- NVIDIA handling ----------
+# Optional Waybar prompt
+read -p "Install Waybar? [y/N] " -n 1 -r; echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo "${INFO} Ensuring Waybar..." | tee -a "$LOG"
+  apt_install_missing waybar
+fi
+
+# ---------- version helpers ----------
+have_pc() { pkg-config --exists "$1" 2>/dev/null; }
+pc_ver() { pkg-config --modversion "$1" 2>/dev/null || echo ""; }
+ver_ge() { printf '%s\n%s\n' "$1" "$2" | sort -VC; }  # returns 0 if $1 >= $2
+
+# ---------- build from source helpers ----------
+git_build_install(){
+  # $1=url  $2=tag_or_branch  [$3=subdir]
+  local url="$1" tag="$2" sub="${3:-}"
+  local name="$(basename "${url%.git}")"
+  rm -rf "$name" 2>/dev/null || true
+  echo "${INFO} Cloning ${name} (${tag})" | tee -a "$LOG"
+  git clone --recursive -b "$tag" "$url" 2>&1 | tee -a "$LOG"
+  pushd "$name/${sub}" >/dev/null
+  echo "${INFO} Building ${name}" | tee -a "$LOG"
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -B build 2>&1 | tee -a "../../$LOG"
+  cmake --build build -j"$(nproc 2>/dev/null || getconf NPROCESSORS_CONF)" 2>&1 | tee -a "../../$LOG"
+  sudo cmake --install build 2>&1 | tee -a "../../$LOG"
+  popd >/dev/null
+  echo "${OK} ${name} installed" | tee -a "$LOG"
+}
+
+# ---------- ensure hyprwayland-scanner (>=0.3.10) ----------
+ensure_hwscanner(){
+  local need_ver="0.3.10"
+  if have_pc hyprwayland-scanner; then
+    local cur="$(pc_ver hyprwayland-scanner || true)"
+    if [[ -n "$cur" ]] && ver_ge "$cur" "$need_ver"; then
+      echo "${OK} hyprwayland-scanner ${cur} already present" | tee -a "$LOG"
+      return 0
+    fi
+  fi
+
+  if pkg_available hyprwayland-scanner; then
+    echo "${INFO} Installing hyprwayland-scanner from apt" | tee -a "$LOG"
+    apt_install_missing hyprwayland-scanner
+  fi
+
+  if ! have_pc hyprwayland-scanner; then
+    echo "${NOTE} Building hyprwayland-scanner from source" | tee -a "$LOG"
+    # v0.4.5 is fine and lists pugixml as dep
+    git_build_install "https://github.com/hyprwm/hyprwayland-scanner.git" "v0.4.5"
+  fi
+}
+ensure_hwscanner
+
+# ---------- ensure hyprutils (>=0.8.0) ----------
+ensure_hyprutils(){
+  local need_ver="0.8.0"
+  local cur=""
+  if have_pc hyprutils; then
+    cur="$(pc_ver hyprutils || true)"
+  fi
+  if [[ -n "$cur" ]] && ver_ge "$cur" "$need_ver"; then
+    echo "${OK} hyprutils ${cur} already present" | tee -a "$LOG"
+    return 0
+  fi
+
+  # Try repo first; Debian sid currently has 0.7.x which is too old for new aquamarine
+  if pkg_available libhyprutils-dev; then
+    echo "${INFO} Installing libhyprutils-dev from apt (may be < ${need_ver})" | tee -a "$LOG"
+    apt_install_missing libhyprutils-dev
+  fi
+
+  # If still missing / too old, build from source
+  local post_ver=""
+  if have_pc hyprutils; then post_ver="$(pc_ver hyprutils || true)"; fi
+  if [[ -z "$post_ver" || ! ( -n "$post_ver" && ver_ge "$post_ver" "$need_ver" ) ]]; then
+    echo "${NOTE} Building hyprutils >= ${need_ver} from source" | tee -a "$LOG"
+    git_build_install "https://github.com/hyprwm/hyprutils.git" "v0.8.3"
+  else
+    echo "${OK} hyprutils ${post_ver} available after apt" | tee -a "$LOG"
+  fi
+}
+ensure_hyprutils
+
+# ---------- NVIDIA (optional) ----------
 if lspci | grep -qi nvidia; then
-  step "NVIDIA detected"
+  echo "${INFO} NVIDIA GPU detected." | tee -a "$LOG"
   read -p "Configure NVIDIA Wayland support now? [y/N] " -n 1 -r; echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     apt_install_missing nvidia-driver libnvidia-egl-wayland1
@@ -172,76 +227,12 @@ EOF
     ensure_flag "modprobe.blacklist=nouveau"
     ensure_flag "nvidia-drm.modeset=1"
     apt_safe update-grub || true
-    ok "NVIDIA configured"
-  else
-    note "Skipping NVIDIA configuration"
+    echo "${OK} NVIDIA configured" | tee -a "$LOG"
   fi
 fi
 
-# ---------- ensure hyprwayland-scanner ----------
-ensure_hwscanner(){
-  local min="0.3.10"
-  if pkg-config --exists "hyprwayland-scanner >= $min" 2>/dev/null \
-     || command -v hyprwayland-scanner >/dev/null 2>&1; then
-    ok "hyprwayland-scanner present"
-    return 0
-  fi
-  step "Building hyprwayland-scanner (>= $min)"
-  local HWS_TAG="${HWS_TAG:-v0.4.4}"
-  rm -rf hyprwayland-scanner 2>/dev/null || true
-  doing "Cloning hyprwayland-scanner $HWS_TAG"
-  git clone --depth 1 -b "$HWS_TAG" https://github.com/hyprwm/hyprwayland-scanner 2>&1 | tee -a "$LOG"
-  pushd hyprwayland-scanner >/dev/null
-  doing "Configuring"
-  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr 2>&1 | tee -a "../$LOG"
-  doing "Compiling"
-  cmake --build build -j"$(nproc 2>/dev/null || getconf _NPROCESSORS_CONF)" 2>&1 | tee -a "../$LOG"
-  doing "Installing"
-  sudo cmake --install build 2>&1 | tee -a "../$LOG"
-  sudo ldconfig
-  popd >/dev/null
-  if command -v hyprwayland-scanner >/dev/null 2>&1; then
-    ok "hyprwayland-scanner installed"
-  else
-    err "hyprwayland-scanner install failed, see $LOG"; exit 1
-  fi
-}
-
-# ---------- Aquamarine (required by Hyprland >=0.49) ----------
-ensure_aquamarine(){
-  local min="0.8.0"
-  if pkg-config --exists "aquamarine >= $min"; then
-    local ver; ver="$(pkg-config --modversion aquamarine || true)"
-    ok "aquamarine $ver present"
-    return 0
-  fi
-  step "Building aquamarine (>= $min)"
-  local AQ_TAG="${AQ_TAG:-v0.9.3}"
-  rm -rf aquamarine 2>/dev/null || true
-  doing "Cloning aquamarine $AQ_TAG"
-  git clone --depth 1 -b "$AQ_TAG" https://github.com/hyprwm/aquamarine 2>&1 | tee -a "$LOG"
-  pushd aquamarine >/dev/null
-  doing "Configuring"
-  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr 2>&1 | tee -a "../$LOG"
-  doing "Compiling"
-  cmake --build build -j"$(nproc 2>/dev/null || getconf _NPROCESSORS_CONF)" 2>&1 | tee -a "../$LOG"
-  doing "Installing"
-  sudo cmake --install build 2>&1 | tee -a "../$LOG"
-  sudo ldconfig
-  popd >/dev/null
-  if pkg-config --exists "aquamarine >= $min"; then
-    ok "aquamarine installed"
-  else
-    err "aquamarine install failed, see $LOG"; exit 1
-  fi
-}
-
-# build-only deps provided from source if apt lacks them
-ensure_hwscanner
-ensure_aquamarine
-
-# ---------- build Hyprland ----------
-HYPRLAND_VERSION="v0.49.0"   # unchanged
+# ---------- Hyprland build/install ----------
+HYPRLAND_VERSION="v0.49.0"
 current=""
 if command -v Hyprland >/dev/null 2>&1; then
   current="$(Hyprland -v 2>/dev/null | sed -nE 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/v\1/p' || true)"
@@ -251,38 +242,52 @@ REBUILD=false
 if [[ -z "$current" ]]; then
   REBUILD=true
 elif [[ "$current" != "$HYPRLAND_VERSION" ]]; then
-  note "Found Hyprland $current, target $HYPRLAND_VERSION"
+  echo "${NOTE} Found Hyprland $current, target $HYPRLAND_VERSION" | tee -a "$LOG"
   read -p "Rebuild to $HYPRLAND_VERSION? [y/N] " -n 1 -r; echo
   [[ $REPLY =~ ^[Yy]$ ]] && REBUILD=true
 fi
 
 if $REBUILD; then
-  step "Building Hyprland $HYPRLAND_VERSION"
+  echo "${INFO} Building Hyprland $HYPRLAND_VERSION" | tee -a "$LOG"
   rm -rf Hyprland 2>/dev/null || true
-  doing "Cloning sources"
   git clone --recursive -b "$HYPRLAND_VERSION" https://github.com/hyprwm/Hyprland 2>&1 | tee -a "$LOG"
   pushd Hyprland >/dev/null
-  doing "Compiling"
   make all 2>&1 | tee -a "../$LOG"
-  doing "Installing"
   sudo make install 2>&1 | tee -a "../$LOG"
   popd >/dev/null
-  ok "Hyprland installed"
+  echo "${OK} Hyprland installed" | tee -a "$LOG"
 else
-  ok "Hyprland $current already installed, skipping build"
+  echo "${OK} Hyprland $current already installed - skipping build" | tee -a "$LOG"
+fi
+
+HYPR_BIN="$(command -v Hyprland || true)"
+if [[ -n "$HYPR_BIN" ]]; then
+  if [[ ! -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
+    echo "${INFO} Installing session file" | tee -a "$LOG"
+    sudo tee /usr/share/wayland-sessions/hyprland.desktop >/dev/null <<EOF
+[Desktop Entry]
+Name=Hyprland
+Comment=An independent Wayland compositor
+Exec=${HYPR_BIN}
+Type=WaylandSession
+EOF
+    echo "${OK} Session entry ready" | tee -a "$LOG"
+  else
+    echo "${OK} Session entry already exists" | tee -a "$LOG"
+  fi
 fi
 
 # ---------- seat/logind ----------
 if systemctl is-active --quiet systemd-logind.service; then
   if systemctl is-enabled --quiet seatd.service 2>/dev/null; then
-    note "Disabling seatd because logind is active"
+    echo "${NOTE} Disabling seatd because logind is active" | tee -a "$LOG"
     sudo systemctl disable --now seatd.service 2>&1 | tee -a "$LOG" || true
   else
-    ok "Using systemd-logind"
+    echo "${OK} Using systemd-logind" | tee -a "$LOG"
   fi
 else
   if systemctl list-unit-files | grep -q '^seatd.service'; then
-    step "Enabling seatd"
+    echo "${INFO} Enabling seatd" | tee -a "$LOG"
     sudo systemctl enable --now seatd.service 2>&1 | tee -a "$LOG" || true
     for grp in seat input; do
       if getent group "$grp" >/dev/null && ! id -nG "$USER" | grep -qw "$grp"; then
@@ -292,17 +297,11 @@ else
   fi
 fi
 
-# ---------- resume unattended-upgrades ----------
+# ---------- wrap up ----------
 if systemctl is-enabled --quiet unattended-upgrades 2>/dev/null; then
   sudo systemctl start unattended-upgrades 2>/dev/null || true
 fi
 
-ok "Done. Full log at $LOG"
-echo "Choose Hyprland in your greeter, or from a TTY run: Hyprland"
-
-read -p "Reboot now? [y/N] " -n 1 -r; echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  info "Rebooting..."
-  sudo reboot
-fi
+echo "${OK} Done. Full log at $LOG" | tee -a "$LOG"
+echo "Choose Hyprland in your greeter, or from a TTY: Hyprland" | tee -a "$LOG"
 
