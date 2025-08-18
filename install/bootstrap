@@ -1,6 +1,7 @@
-#!/usr/bin/env bash
 set -Eeuo pipefail
 
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
 REPO_RAW="https://raw.githubusercontent.com/AshGw/dotfiles/main"
 REPO_GIT="https://github.com/AshGw/dotfiles.git"
 
@@ -11,7 +12,72 @@ err(){ printf "%b%s%b\n" "$RED" "$*" "$END" >&2; }
 
 have(){ command -v "$1" >/dev/null 2>&1; }
 is_debian(){ [[ -f /etc/debian_version ]]; }
-as_root(){ if [[ $EUID -ne 0 ]]; then sudo "$@"; else "$@"; fi; }
+
+# script path for reexec
+SCRIPT_SELF="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+REENTERED="${1-}"; if [[ "$REENTERED" == "--reentered" ]]; then shift; fi
+
+# never run whole script as root
+if [[ $EUID -eq 0 && -z "${ALLOW_ROOT:-}" ]]; then
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    say "dropping root, reentering as $SUDO_USER"
+    exec su - "$SUDO_USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} bash '$SCRIPT_SELF' --reentered"
+  else
+    err "Do not run this script as root. Run as a normal user."; exit 1
+  fi
+fi
+
+# minimal su runner used only before sudo exists
+_su_root() {
+  local q cmd=""
+  for q in "$@"; do cmd+=" $(printf "%q" "$q")"; done
+  su -pc "${cmd# }" root
+}
+
+# install sudo only, then reexec as user with fresh groups if needed
+ensure_sudo_then_reexec() {
+  if have sudo; then
+    ok "sudo present"
+    return 0
+  fi
+  if ! have su; then
+    err "No sudo and no su. Log in as root and apt-get install sudo, then rerun."
+    exit 1
+  fi
+  say "installing sudo via su"
+  _su_root apt-get update -yq
+  _su_root apt-get install -yq --no-install-recommends sudo
+  have sudo || { err "sudo install failed"; exit 1; }
+
+  # ensure user is in sudo group
+  if ! id -nG "$USER" | tr ' ' '\n' | grep -qx sudo; then
+    say "adding $USER to sudo group"
+    _su_root usermod -aG sudo "$USER"
+    say "reentering login shell to refresh groups"
+    exec su - "$USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} bash '$SCRIPT_SELF' --reentered"
+  fi
+
+  ok "sudo ready"
+}
+
+# after sudo exists, all privileged ops go through sudo
+as_root() {
+  if have sudo; then
+    # try noninteractive first, fall back to interactive if needed
+    if sudo -n true 2>/dev/null; then sudo -E "$@"
+    else sudo -E "$@"
+    fi
+  else
+    # should not happen after ensure_sudo_then_reexec
+    _su_root "$@"
+  fi
+}
+
+APT_UPDATED=0
+apt_update_once(){ if [[ $APT_UPDATED -eq 0 ]]; then as_root apt-get update -yq || true; APT_UPDATED=1; fi; }
+
+# run this first
+ensure_sudo_then_reexec
 
 prompt_yes_no(){ # $1=message, return 0 for yes, 1 for no
   local ans
