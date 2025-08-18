@@ -1,9 +1,8 @@
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
-REPO_RAW="https://raw.githubusercontent.com/AshGw/dotfiles/main"
-REPO_GIT="https://github.com/AshGw/dotfiles.git"
 
 GREEN="\e[1;32m"; CYAN="\e[36m"; RED="\e[31m"; END="\e[0m"
 say(){ printf "%b%s%b\n" "$CYAN" "$*" "$END"; }
@@ -13,17 +12,17 @@ err(){ printf "%b%s%b\n" "$RED" "$*" "$END" >&2; }
 have(){ command -v "$1" >/dev/null 2>&1; }
 is_debian(){ [[ -f /etc/debian_version ]]; }
 
-# script path for reexec
 SCRIPT_SELF="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
 REENTERED="${1-}"; if [[ "$REENTERED" == "--reentered" ]]; then shift; fi
 
-# never run whole script as root
+# never run the whole script as root
 if [[ $EUID -eq 0 && -z "${ALLOW_ROOT:-}" ]]; then
   if [[ -n "${SUDO_USER:-}" ]]; then
     say "dropping root, reentering as $SUDO_USER"
     exec su - "$SUDO_USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} bash '$SCRIPT_SELF' --reentered"
   else
-    err "Do not run this script as root. Run as a normal user."; exit 1
+    err "Run as a normal user. The script will escalate only for vitals."
+    exit 1
   fi
 fi
 
@@ -34,41 +33,45 @@ _su_root() {
   su -pc "${cmd# }" root
 }
 
-# install sudo only, then reexec as user with fresh groups if needed
-ensure_sudo_then_reexec() {
+# Install a minimal baseline with su only, then add user to sudo and reexec
+ensure_core_then_reexec() {
+  is_debian || return 0
+
+  # If sudo exists, we can install any missing vitals via sudo later
   if have sudo; then
     ok "sudo present"
-    return 0
-  fi
-  if ! have su; then
-    err "No sudo and no su. Log in as root and apt-get install sudo, then rerun."
-    exit 1
-  fi
-  say "installing sudo via su"
-  _su_root apt-get update -yq
-  _su_root apt-get install -yq --no-install-recommends sudo
-  have sudo || { err "sudo install failed"; exit 1; }
+  else
+    if ! have su; then
+      err "No sudo and no su. Log in as root, apt-get install sudo passwd, then rerun."
+      exit 1
+    fi
+    say "installing vitals via su (one pass)"
+    _su_root apt-get update -yq || true
+    # VITALS include everything we might call early: usermod, su, coreutils, apt helpers, net, archive tools
+    _su_root apt-get install -yq --no-install-recommends \
+      sudo passwd login adduser \
+      ca-certificates gnupg curl wget \
+      coreutils findutils util-linux procps \
+      grep gawk sed tar gzip bzip2 xz-utils unzip rsync file less which \
+      iproute2 iputils-ping dnsutils net-tools tzdata locales || true
 
-  # ensure user is in sudo group
-  if ! id -nG "$USER" | tr ' ' '\n' | grep -qx sudo; then
+    have sudo || { err "sudo install failed"; exit 1; }
+    # Now usermod exists because passwd got installed
     say "adding $USER to sudo group"
-    _su_root usermod -aG sudo "$USER"
-    say "reentering login shell to refresh groups"
+    _su_root usermod -aG sudo "$USER" || true
+
+    # New groups need a new login shell
+    say "reentering as $USER to refresh groups"
     exec su - "$USER" -c "env BOOTSTRAP_ASSUME_YES=${BOOTSTRAP_ASSUME_YES:-0} bash '$SCRIPT_SELF' --reentered"
   fi
-
-  ok "sudo ready"
 }
 
-# after sudo exists, all privileged ops go through sudo
+# After this point, all priv ops go through sudo
 as_root() {
   if have sudo; then
-    # try noninteractive first, fall back to interactive if needed
-    if sudo -n true 2>/dev/null; then sudo -E "$@"
-    else sudo -E "$@"
-    fi
+    sudo -E "$@"
   else
-    # should not happen after ensure_sudo_then_reexec
+    # Should not happen because ensure_core_then_reexec installs sudo
     _su_root "$@"
   fi
 }
@@ -76,8 +79,29 @@ as_root() {
 APT_UPDATED=0
 apt_update_once(){ if [[ $APT_UPDATED -eq 0 ]]; then as_root apt-get update -yq || true; APT_UPDATED=1; fi; }
 
-# run this first
-ensure_sudo_then_reexec
+# Run first
+ensure_core_then_reexec
+
+# Optional: ensure vitals are present even if we had sudo already
+ensure_vitals_with_sudo(){
+  local MISSING=()
+  local pkgs=(
+    passwd login adduser
+    ca-certificates gnupg curl wget
+    coreutils findutils util-linux procps
+    grep gawk sed tar gzip bzip2 xz-utils unzip rsync file less which
+    iproute2 iputils-ping dnsutils net-tools tzdata locales
+  )
+  for p in "${pkgs[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || MISSING+=("$p"); done
+  if ((${#MISSING[@]})); then
+    say "installing missing vitals with sudo: ${#MISSING[@]}"
+    apt_update_once
+    as_root apt-get install -yq --no-install-recommends "${MISSING[@]}" || true
+  else
+    ok "vitals already present"
+  fi
+}
+ensure_vitals_with_sudo
 
 prompt_yes_no(){ # $1=message, return 0 for yes, 1 for no
   local ans
