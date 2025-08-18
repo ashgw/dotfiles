@@ -324,14 +324,26 @@ if [[ -d "$HOME/.oh-my-zsh" ]]; then
   [[ -d "$ZCUST/zsh-syntax-highlighting" ]] || git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZCUST/zsh-syntax-highlighting" >/dev/null 2>&1 || true
 fi
 
+
+ask_install() {
+  local name="$1" bin="$2"
+  read -r -p "Do you want to install $name ($bin)? [y/N] " ans
+  case "$ans" in
+    [yY]|[yY][eE][sS]) force_tool "$name" "$bin" ;;
+    *) echo "Skipping $name" ;;
+  esac
+}
+
 # Optional language stacks from your repo (idempotent)
-force_tool conda     "conda"
-force_tool node      "node"
-force_tool pnpm      "pnpm"
-force_tool poetry    "poetry"
-force_tool go        "go"
-force_tool terraform "terraform"
-force_tool bun       "bun"
+ask_install conda     "conda"
+ask_install node      "node"
+ask_install pnpm      "pnpm"
+ask_install poetry    "poetry"
+ask_install go        "go"
+ask_install terraform "terraform"
+ask_install bun       "bun"
+
+
 
 # Rust optional
 if have cargo || have rustup; then ok "rust present"; else
