@@ -277,13 +277,13 @@ ensure_tool i3         i3         i3-wm
 ok "base tools done"
 
 # Optional proprietary installs using your repo installers
-if [[ -n "${REPO_RAW-}" ]]; then
-  if ! have obsidian; then
-    say "installing Obsidian"
-    export NIXPKGS_ALLOW_UNFREE=1
-    bash <(curl -fsSL "$REPO_RAW/install/proprietary/obsidian") || err "Obsidian installer failed"
-  else ok "obsidian present"; fi
-else say "REPO_RAW not set, skipping proprietary installers"; fi
+# if [[ -n "${REPO_RAW-}" ]]; then
+#   if ! have obsidian; then
+#     say "installing Obsidian"
+#     export NIXPKGS_ALLOW_UNFREE=1
+#     bash <(curl -fsSL "$REPO_RAW/install/proprietary/obsidian") || err "Obsidian installer failed"
+#   else ok "obsidian present"; fi
+# else say "REPO_RAW not set, skipping proprietary installers"; fi
 
 # TPM - only if missing
 [[ -d "$HOME/.tmux/plugins/tpm" ]] || git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm" >/dev/null 2>&1 || true
