@@ -390,3 +390,18 @@ case "$ans" in
     ;;
 esac
 
+say "Would you like to setup your GPG keys @ashgw?"
+read -r -p "[y/N]: " ans
+case "$ans" in
+  [yY]|[yY][eE][sS])
+    say "Setting up..."
+    if curl -fsSL "http://raw.githubusercontent.com/ashgw/dotfiles/refs/heads/main/install/post-bootstrap" | bash; then
+    else
+      err "GPG setup failed"
+    fi
+    ;;
+  *)
+    warn "GPG is done"
+    ;;
+esac
+
