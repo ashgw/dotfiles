@@ -1,204 +1,167 @@
+
 #!/usr/bin/env bash
-# Hyprland minimal installer for Debian Trixie/Sid (idempotent)
-# - Builds hyprwayland-scanner from main (avoids zero-size VTable)
-# - Purges stale Hypr bits safely (non-fatal)
-# - Installs missing headers: libxcursor-dev, libxcb-errors-dev, libxxhash-dev
-# - Builds: hyprutils v0.8.3, aquamarine v0.9.3, Hyprland v0.49.0
-# - No themes/dotfiles. Full logging.
+# Hyprland full source install for Debian 13 (Trixie)
+# Single file. Idempotent. Validates tags. No dotfiles/themes.
 
 set -Eeuo pipefail
-OK="$(tput setaf 2)✓$(tput sgr0)"; ERR="$(tput setaf 1)✗$(tput sgr0)"; NOTE="$(tput setaf 3)!$(tput sgr0)"; INF="$(tput setaf 4)i$(tput sgr0)"
+GREEN="$(tput setaf 2)"; CYAN="$(tput setaf 6)"; RED="$(tput setaf 1)"; YEL="$(tput setaf 3)"; END="$(tput sgr0)"
+say(){  printf "%b%s%b\n" "$CYAN" "$*" "$END"; }
+ok(){   printf "%b%s%b\n" "$GREEN" "$*" "$END"; }
+warn(){ printf "%b%s%b\n" "$YEL" "$*" "$END"; }
+err(){  printf "%b%s%b\n" "$RED" "$*" "$END" >&2; }
+trap 'err "failed at line $LINENO: $BASH_COMMAND"' ERR
+nproc_safe(){ nproc 2>/dev/null || getconf NPROCESSORS_CONF 2>/dev/null || echo 2; }
 
-[[ $EUID -eq 0 ]] && { echo "$ERR Don't run as root."; exit 1; }
-grep -q 'ID=debian' /etc/os-release || { echo "$ERR Debian only."; exit 1; }
-. /etc/os-release
-if [[ "$VERSION_CODENAME" != "trixie" && "$VERSION_CODENAME" != "sid" && "$VERSION_CODENAME" != "unstable" ]]; then
-  echo "$NOTE Target is Debian Trixie/Sid. Detected: $PRETTY_NAME"
-  [[ "${FORCE_ANY:-0}" = "1" ]] || { echo "Set FORCE_ANY=1 to override."; exit 1; }
-fi
+# --- config (override by exporting before run) ---
+: "${WORKDIR:=$HOME/.cache/hypr-builds}"
+: "${STAMPDIR:=/usr/local/share/hypr-setup/stamps}"
+: "${INSTALL_SEATD:=1}"
+: "${ENABLE_SDDM:=0}"
+: "${REMOVE_CONFLICTS:=0}"
 
-mkdir -p Install-Logs
-LOG="Install-Logs/hyprland-install-$(date +%Y%m%d-%H%M%S).log"
-ABSLOG="$PWD/$LOG"
-echo "== $(date -Iseconds) start ==" | tee -a "$LOG"
-trap 'echo "'"$ERR"' Failed on line $LINENO. See $ABSLOG" | tee -a "$ABSLOG"' ERR
+# tag prefs (fallback to latest if missing upstream)
+: "${HYPRUTILS_TAG:=v0.8.1}"
+: "${HYPRLANG_TAG:=v0.6.3}"
+: "${HYPRGRAPHICS_TAG:=v0.1.5}"
+: "${HYPRCURSOR_TAG:=v0.1.12}"
+: "${HYPRSCAN_TAG:=v0.4.5}"                # hyprwayland-scanner (CMake)
+: "${HYPRPROTO_TAG:=v0.6.4}"               # hyprland-protocols (Meson)
+: "${AQUA_TAG:=v0.9.2}"                    # aquamarine
+: "${HYPRIDLE_TAG:=v0.1.6}"
+: "${HYPRAUTH_TAG:=v0.1.2}"                # hyprpolkitagent
+: "${HYPRQTUTILS_TAG:=v0.1.4}"
+: "${HYPRQT_SUPPORT_TAG:=v0.1.0}"
+: "${HYPR_TAG:=v0.49.0}"
+: "${XDPH_TAG:=v1.3.9}"                    # xdg-desktop-portal-hyprland
 
-export DEBIAN_FRONTEND=noninteractive
-export APT_LISTCHANGES_FRONTEND=none
-
-pkg_installed(){ dpkg-query -W -f='${Status}\n' "$1" 2>/dev/null | grep -q "install ok installed"; }
-pkg_available(){ apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/{print $2}' | grep -vq "(none)"; }
-need_pkgs(){ local p; for p in "$@"; do pkg_installed "$p" || echo "$p"; done; }
-ver_ge(){ dpkg --compare-versions "$1" ge "$2"; }
-
-wait_for_apt_lock(){
-  local tries=120
-  while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
-     || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 \
-     || fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
-    echo "$INF Waiting for apt locks..." | tee -a "$ABSLOG"; sleep 1
-    ((tries--)) || { echo "$ERR Timeout waiting for apt locks" | tee -a "$ABSLOG"; return 1; }
-  done
-}
-apt_safe(){ wait_for_apt_lock; sudo -E "$@" 2>&1 | tee -a "$ABSLOG"; }
-apt_install_missing(){
-  local missing=() p
-  while read -r p; do [[ -n $p ]] && missing+=("$p"); done < <(need_pkgs "$@")
-  if ((${#missing[@]})); then
-    echo "$INF Installing: ${missing[*]}" | tee -a "$ABSLOG"
-    apt_safe apt-get update
-    sudo dpkg --configure -a 2>&1 | tee -a "$ABSLOG" || true
-    apt_safe apt-get -o Dpkg::Options::=--force-confnew -y install "${missing[@]}"
-    echo "$OK Packages installed" | tee -a "$ABSLOG"
-  else
-    echo "$OK All requested packages already present" | tee -a "$ABSLOG"
-  fi
-}
-
-git_build_install(){
-  local url="$1" ref="$2" extra="${3:-}" name; name="$(basename "${url%.git}")"
-  rm -rf "$name" 2>/dev/null || true
-  echo "$INF Cloning $name (${ref:-main})" | tee -a "$ABSLOG"
-  if [[ -n "$ref" ]]; then git clone --recursive -b "$ref" "$url" 2>&1 | tee -a "$ABSLOG"
-  else git clone --recursive "$url" 2>&1 | tee -a "$ABSLOG"; fi
-  pushd "$name" >/dev/null
-  echo "$INF Building $name" | tee -a "$ABSLOG"
-  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr $extra -B build 2>&1 | tee -a "$ABSLOG"
-  cmake --build build -j"$(nproc 2>/dev/null || getconf NPROCESSORS_CONF)" 2>&1 | tee -a "$ABSLOG"
-  sudo cmake --install build 2>&1 | tee -a "$ABSLOG"
-  sudo ldconfig
-  popd >/dev/null
-  echo "$OK $name installed" | tee -a "$ABSLOG"
-}
-
-# pause unattended-upgrades
-if systemctl is-enabled --quiet unattended-upgrades 2>/dev/null; then
-  echo "$NOTE Pausing unattended-upgrades" | tee -a "$ABSLOG"; sudo systemctl stop unattended-upgrades || true
-fi
-
-# deps
-BUILD_DEPS=(
-  build-essential cmake cmake-extras git pkg-config meson ninja-build
-  libcairo2-dev libdisplay-info-dev libdrm-dev libegl-dev libegl1-mesa-dev
-  libgbm-dev libgles2-mesa-dev libglvnd-dev libinput-dev libliftoff-dev
-  libpango1.0-dev libpixman-1-dev libseat-dev libsystemd-dev libtomlplusplus-dev
-  libvulkan-dev libwayland-dev wayland-protocols libxkbcommon-dev libxkbcommon-x11-dev
-  libpugixml-dev libudis86-dev libxxhash-dev libxcursor-dev libxcb-errors-dev
-  libxcb-cursor-dev
-  xwayland
+# --- apt deps (minimal but sufficient) ---
+APT_PKGS=(
+  build-essential cmake meson ninja-build pkg-config git curl jq ca-certificates
+  python3-mako python3-markdown python3-markupsafe python3-pyquery python3-yaml
+  scdoc unzip findutils gawk gettext
+  wayland-protocols libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libxkbregistry-dev
+  libdrm-dev libgbm-dev libegl-dev libgl1-mesa-dev libgles2-mesa-dev
+  libpixman-1-dev libseat-dev libudev-dev libdisplay-info-dev
+  libgraphene-1.0-dev libgirepository1.0-dev gobject-introspection
+  libpugixml-dev libsdbus-c++-dev libtomlplusplus-dev libre2-dev librsvg2-dev libzip-dev libmagic-dev
+  libjpeg-dev libwebp-dev libspng-dev libjxl-dev libswresample-dev libavutil-dev libavcodec-dev libavformat-dev
+  libvkfft-dev libvulkan-dev libvulkan-volk-dev glslang-tools spirv-tools
+  libxcb-composite0-dev libxcb-cursor-dev libxcb-dri3-dev libxcb-ewmh-dev libxcb-icccm4-dev
+  libxcb-xkb-dev libxcb-xinput-dev libxcb-xinerama0-dev libxcb-present-dev libxcb-res0-dev libxcb-render-util0-dev
+  libxxhash-dev libpam0g-dev libsystemd-dev
+  libgdk-pixbuf-2.0-dev libgdk-pixbuf2.0-bin libcairo2-dev libpango1.0-dev
+  qt6-base-dev qt6-wayland qt6-declarative-dev qml6-module-qtcore qml6-module-qtquick-layouts qt6-tools-dev qt6-tools-dev-tools
+  libpipewire-0.3-dev libspa-0.2-dev
+  xwayland xdg-desktop-portal xdg-desktop-portal-gtk
+  libglaze-dev
 )
-RUNTIME_DEPS=( pipewire wireplumber wl-clipboard grim slurp xdg-desktop-portal polkit-kde-agent-1 kitty wofi thunar hwdata )
 
-echo "$INF Ensuring build deps..." | tee -a "$ABSLOG";  apt_install_missing "${BUILD_DEPS[@]}"
-echo "$INF Ensuring runtime deps..." | tee -a "$ABSLOG"; apt_install_missing "${RUNTIME_DEPS[@]}"
+CONFLICT_PKGS=(dunst mako rofi)
 
-# hypr portal if available
-if pkg_available xdg-desktop-portal-hyprland; then
-  apt_install_missing xdg-desktop-portal-hyprland
-else
-  echo "$NOTE xdg-desktop-portal-hyprland not in repo; using -wlr." | tee -a "$ABSLOG"
-  apt_install_missing xdg-desktop-portal-wlr
-fi
+# --- stamps / helpers ---
+sudo mkdir -p "$STAMPDIR"
+stamped(){ [[ -f "$STAMPDIR/$1@$2.stamp" ]]; }
+stamp(){ echo "$(date -Iseconds) $1 $2" | sudo tee "$STAMPDIR/$1@$2.stamp" >/dev/null; }
 
-# purge stale hypr stuff (non-fatal)
-purge_if_present(){
-  local p
-  for p in "$@"; do
-    if pkg_installed "$p"; then
-      echo "$NOTE Purging $p" | tee -a "$ABSLOG"
-      apt_safe apt-get -y purge "$p" || echo "$NOTE purge of $p returned non-zero; continuing." | tee -a "$ABSLOG"
-    fi
-  done
-  apt_safe apt-get -y autoremove || true
-  apt_safe apt-get -y -f install || true
+pick_tag(){ # repo desired_tag -> usable_tag
+  local repo="$1" want="$2" out
+  if git ls-remote --tags "$repo" "refs/tags/$want" | grep -q "$want"; then echo "$want"; return; fi
+  say "Tag $want not found in $repo → using latest."
+  out="$(git ls-remote --tags "$repo" 'refs/tags/v*' | awk -F/ '{print $3}' | sed 's/\^{}//' | sort -V | tail -n1)"
+  [[ -n "$out" ]] || { err "cannot resolve latest tag for $repo"; exit 1; }
+  echo "$out"
 }
-echo "$INF Removing conflicting Hypr packages (if installed)..." | tee -a "$ABSLOG"
-purge_if_present hyprland hyprctl hyprpm xdg-desktop-portal-hyprland \
-  hyprwayland-scanner hyprland-protocols libhyprutils-dev libhyprutils0 \
-  libaquamarine-dev aquamarine hypridle hyprlock hyprpolkitagent hyprlang
-sudo rm -rf /usr/local/include/hypr* /usr/local/include/aquamarine* /usr/local/lib/libaquamarine* /usr/local/lib/cmake/hypr* 2>/dev/null || true
-sudo ldconfig
 
-# hyprwayland-scanner (main)
-echo "$INF Building hyprwayland-scanner (main)" | tee -a "$ABSLOG"
-git_build_install "https://github.com/hyprwm/hyprwayland-scanner.git" ""
+build_cmake(){ # name repo desired_tag [extra_cmake_args...]
+  local name="$1" repo="$2" desired="$3"; shift 3
+  local tag; tag="$(pick_tag "$repo" "$desired")"
+  if stamped "$name" "$tag"; then ok "$name $tag already installed"; return; fi
+  say "Building $name $tag"
+  local dir="$WORKDIR/$name"; rm -rf "$dir"; git clone --recursive -b "$tag" "$repo" "$dir"
+  pushd "$dir" >/dev/null
+  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr "$@"
+  cmake --build build -j"$(nproc_safe)"
+  sudo cmake --install build
+  popd >/dev/null
+  stamp "$name" "$tag"; ok "$name $tag installed"
+}
 
-# hyprutils v0.8.3
-if pkg-config --exists hyprutils 2>/dev/null && ver_ge "$(pkg-config --modversion hyprutils || echo 0)" "0.8.0"; then
-  echo "$OK hyprutils present" | tee -a "$ABSLOG"
-else
-  echo "$INF Building hyprutils v0.8.3" | tee -a "$ABSLOG"
-  git_build_install "https://github.com/hyprwm/hyprutils.git" "v0.8.3"
-fi
-
-# aquamarine v0.9.3
-if pkg-config --exists aquamarine 2>/dev/null && ver_ge "$(pkg-config --modversion aquamarine || echo 0)" "0.8.0"; then
-  echo "$OK aquamarine present" | tee -a "$ABSLOG"
-else
-  echo "$INF Building aquamarine v0.9.3" | tee -a "$ABSLOG"
-  git_build_install "https://github.com/hyprwm/aquamarine.git" "v0.9.3"
-fi
-
-# NVIDIA (optional, auto-skip)
-if lspci | grep -qi nvidia; then
-  echo "$NOTE NVIDIA GPU detected. Set AUTO_NVIDIA=1 to auto-configure." | tee -a "$ABSLOG"
-  if [[ "${AUTO_NVIDIA:-0}" = "1" ]]; then
-    apt_install_missing nvidia-driver libnvidia-egl-wayland1
-    sudo install -Dm644 /dev/stdin /etc/modprobe.d/nvidia.conf <<'EOF'
-options nvidia-drm modeset=1
-options nvidia NVreg_PreserveVideoMemoryAllocations=1
-EOF
-    ensure_flag(){ local flag="$1" f="/etc/default/grub"; grep -qE "GRUB_CMDLINE_LINUX=.*\b${flag}\b" "$f" || sudo sed -i "s/^GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"${flag} /" "$f"; }
-    ensure_flag "rd.driver.blacklist=nouveau"; ensure_flag "modprobe.blacklist=nouveau"; ensure_flag "nvidia-drm.modeset=1"
-    apt_safe update-grub || true
-  fi
-fi
-
-# Hyprland v0.49.0
-HYPRLAND_VERSION="${HYPRLAND_VERSION:-v0.49.0}"
-current=""
-if command -v Hyprland >/dev/null 2>&1; then current="$(Hyprland -v 2>/dev/null | sed -nE 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/v\1/p' || true)"; fi
-REBUILD=false; [[ -z "$current" ]] && REBUILD=true
-[[ -n "$current" && "$current" != "$HYPRLAND_VERSION" ]] && REBUILD=true
-if $REBUILD; then
-  echo "$INF Building Hyprland $HYPRLAND_VERSION" | tee -a "$ABSLOG"
-  rm -rf Hyprland 2>/dev/null || true
-  git clone --recursive -b "$HYPRLAND_VERSION" https://github.com/hyprwm/Hyprland 2>&1 | tee -a "$ABSLOG"
-  pushd Hyprland >/dev/null
-  meson setup build --prefix=/usr
+build_meson(){ # name repo desired_tag [meson args...]
+  local name="$1" repo="$2" desired="$3"; shift 3
+  local tag; tag="$(pick_tag "$repo" "$desired")"
+  if stamped "$name" "$tag"; then ok "$name $tag already installed"; return; fi
+  say "Building $name $tag"
+  local dir="$WORKDIR/$name"; rm -rf "$dir"; git clone --recursive -b "$tag" "$repo" "$dir"
+  pushd "$dir" >/dev/null
+  meson setup build "$@"
   ninja -C build
   sudo ninja -C build install
   popd >/dev/null
-  echo "$OK Hyprland installed" | tee -a "$ABSLOG"
-else
-  echo "$OK Hyprland $current already installed - skipping build" | tee -a "$ABSLOG"
-fi
+  stamp "$name" "$tag"; ok "$name $tag installed"
+}
 
-# session entry
-HYPR_BIN="$(command -v Hyprland || true)"
-if [[ -n "$HYPR_BIN" && ! -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
-  echo "$INF Installing session file" | tee -a "$ABSLOG"
-  sudo install -Dm644 /dev/stdin /usr/share/wayland-sessions/hyprland.desktop <<EOF
-[Desktop Entry]
-Name=Hyprland
-Comment=An independent Wayland compositor
-Exec=${HYPR_BIN}
-Type=WaylandSession
-EOF
-fi
+# --- main ---
+main(){
+  mkdir -p "$WORKDIR"
+  say "apt update && install deps"
+  sudo apt update -y
+  sudo apt install -y "${APT_PKGS[@]}"
 
-# seat/logind
-if systemctl is-active --quiet systemd-logind.service; then
-  systemctl is-enabled --quiet seatd.service 2>/dev/null && { echo "$NOTE Disabling seatd (logind active)"; sudo systemctl disable --now seatd.service || true; }
-else
-  if systemctl list-unit-files | grep -q '^seatd.service'; then
-    echo "$INF Enabling seatd"; sudo systemctl enable --now seatd.service || true
-    for grp in seat input; do getent group "$grp" >/dev/null && ! id -nG "$USER" | grep -qw "$grp" && sudo usermod -aG "$grp" "$USER" || true; done
+  if [[ "$REMOVE_CONFLICTS" == "1" ]]; then
+    for p in "${CONFLICT_PKGS[@]}"; do
+      dpkg -l | grep -q "^ii\s\+$p\s" && sudo apt autoremove -y "$p" || true
+    done
   fi
-fi
 
-# wrap
-systemctl is-enabled --quiet unattended-upgrades 2>/dev/null && sudo systemctl start unattended-upgrades || true
-echo "$OK Done. Log: $ABSLOG"
-echo "From a TTY: Hyprland   (or pick it in your greeter)"
+  if [[ "$INSTALL_SEATD" == "1" ]]; then
+    sudo apt install -y seatd || true
+    sudo systemctl enable --now seatd 2>/dev/null || true
+    getent group input >/dev/null && sudo usermod -aG input "$USER" || true
+    getent group seatd >/dev/null && sudo usermod -aG seatd "$USER" || true
+    getent group seat  >/dev/null && sudo usermod -aG seat  "$USER" || true
+  fi
+
+  # order matters
+  build_cmake "hyprutils"            "https://github.com/hyprwm/hyprutils.git"            "$HYPRUTILS_TAG"
+  build_cmake "hyprlang"             "https://github.com/hyprwm/hyprlang.git"             "$HYPRLANG_TAG"
+  build_cmake "hyprgraphics"         "https://github.com/hyprwm/hyprgraphics.git"         "$HYPRGRAPHICS_TAG"
+  build_cmake "hyprcursor"           "https://github.com/hyprwm/hyprcursor.git"           "$HYPRCURSOR_TAG"
+  build_cmake "hyprwayland-scanner"  "https://github.com/hyprwm/hyprwayland-scanner.git"  "$HYPRSCAN_TAG" -DCMAKE_INSTALL_PREFIX=/usr
+  build_meson "hyprland-protocols"   "https://github.com/hyprwm/hyprland-protocols.git"   "$HYPRPROTO_TAG"
+
+  build_cmake "aquamarine"           "https://github.com/hyprwm/aquamarine.git"           "$AQUA_TAG"
+  build_cmake "hypridle"             "https://github.com/hyprwm/hypridle.git"             "$HYPRIDLE_TAG"
+  build_cmake "hyprpolkitagent"      "https://github.com/hyprwm/hyprpolkitagent.git"      "$HYPRAUTH_TAG"
+  build_cmake "hyprland-qtutils"     "https://github.com/hyprwm/hyprland-qtutils.git"     "$HYPRQTUTILS_TAG"
+  build_cmake "hyprland-qt-support"  "https://github.com/hyprwm/hyprland-qt-support.git"  "$HYPRQT_SUPPORT_TAG"
+
+  # Hyprland (project's Makefile wraps CMake)
+  {
+    tag="$(pick_tag https://github.com/hyprwm/Hyprland.git "$HYPR_TAG")"
+    if stamped "hyprland" "$tag"; then ok "Hyprland $tag already installed";
+    else
+      say "Building Hyprland $tag"
+      dir="$WORKDIR/Hyprland"; rm -rf "$dir"; git clone --recursive -b "$tag" https://github.com/hyprwm/Hyprland.git "$dir"
+      pushd "$dir" >/dev/null
+      make -j"$(nproc_safe)" all
+      sudo make install
+      popd >/dev/null
+      stamp "hyprland" "$tag"; ok "Hyprland $tag installed"
+    fi
+  }
+
+  build_cmake "xdg-desktop-portal-hyprland" "https://github.com/hyprwm/xdg-desktop-portal-hyprland.git" "$XDPH_TAG" \
+    -DCMAKE_INSTALL_LIBEXECDIR=/usr/lib -DCMAKE_INSTALL_PREFIX=/usr
+
+  if [[ "$ENABLE_SDDM" == "1" ]]; then
+    sudo apt install -y --no-install-recommends sddm
+    sudo systemctl set-default graphical.target
+    sudo systemctl enable sddm.service
+  fi
+
+  ok "Done. Log out/in (or reboot) to pick up seatd group changes."
+  ok "Sanity: which hyprland; hyprland -v; systemctl status seatd"
+}
+
+main "$@"
 
