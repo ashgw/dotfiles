@@ -1,11 +1,13 @@
 # ───────────────────────────────
-# Core env
+# Core locale and env
 # ───────────────────────────────
 export LANG=en_US.UTF-8
 export LANGUAGE=en_US:en
 export LC_ALL=en_US.UTF-8
 
-# Oh My Zsh
+# ───────────────────────────────
+# Oh My Zsh config (must be before sourcing)
+# ───────────────────────────────
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="bira"
 plugins=(
@@ -36,7 +38,6 @@ path+=(
   $HOME/mathlab/MATLAB/R2024b/bin
   $HOME/.console-ninja/.bin
 )
-
 export PATH
 
 # Make system themes/fonts visible to Nix apps
@@ -49,7 +50,7 @@ if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
 fi
 
 # ───────────────────────────────
-# Editors
+# Editors and TTY pinentry
 # ───────────────────────────────
 export EDITOR="nvim"
 
@@ -58,7 +59,7 @@ if [[ -n "$SSH_CONNECTION" ]]; then
   export PINENTRY_USER_DATA='USE_CURSES=1'
 fi
 
-# GPG pinentry on current tty
+# GPG pinentry on current tty (overridden later)
 export GPG_TTY="$(tty 2>/dev/null || echo /dev/pts/0)"
 
 # ───────────────────────────────
@@ -107,7 +108,7 @@ PROMPT_EOL_MARK=""           # hide %
 eval "$(dircolors ~/.dircolors 2>/dev/null || true)"
 
 # ───────────────────────────────
-# History
+# History and timing
 # ───────────────────────────────
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=1000
@@ -127,25 +128,6 @@ TIMEFMT=$'\nreal\t%E\nuser\t%U\nsys\t%S\ncpu\t%P'
 # zoxide + starship
 eval "$(zoxide init zsh)"
 eval "$(starship init zsh)"
-
-# Conda
-if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
-  . "$HOME/miniconda3/etc/profile.d/conda.sh"
-fi
-
-# Node version manager
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
-
-# pnpm
-export PNPM_HOME="$HOME/.local/share/pnpm"
-
-# sbin too
-export PATH=$PATH:/usr/sbin
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
 
 # ───────────────────────────────
 # FZF defaults
@@ -215,11 +197,56 @@ alias cs="cursor"
 alias lay='tree -a --gitignore -I ".git"'
 
 # ───────────────────────────────
-# Misc
+# System helpers
 # ───────────────────────────────
 # command-not-found (Debian/Ubuntu)
 [ -f /etc/zsh_command_not_found ] && . /etc/zsh_command_not_found
 
-# functions pack
+# GPG explicit tty override (kept as in original)
+export GPG_TTY=/dev/pts/2
+
+# ───────────────────────────────
+# Toolchains and language env
+# ───────────────────────────────
+# Nix
+if [ -e /home/ashgw/.nix-profile/etc/profile.d/nix.sh ]; then . /home/ashgw/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
+export PATH="$HOME/miniconda3/bin:$PATH"
+. /home/ashgw/miniconda3/etc/profile.d/conda.sh
+. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh 2>/dev/null || :
+
+# NVM & Node
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+
+# pnpm
+export PNPM_HOME="$HOME/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+
+# sbin too
+export PATH=$PATH:/usr/sbin
+
+# Conda (duplicate kept)
+if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
+  . "$HOME/miniconda3/etc/profile.d/conda.sh"
+fi
+
+# go
+export PATH="$PATH:/usr/local/go/bin"
+export GOPATH="$HOME/go"
+export PATH="$PATH:$GOPATH/bin"
+
+# Rust
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# ───────────────────────────────
+# Functions pack
+# ───────────────────────────────
 [ -f "$HOME/zshfuncs/entrypoint.zsh" ] && source "$HOME/zshfuncs/entrypoint.zsh"
 
