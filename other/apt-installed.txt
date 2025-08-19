@@ -240,6 +240,7 @@ libre2-dev
 libreadline8t64
 librsvg2-dev
 libsdbus-c++-dev
+libsdl2-dev
 libseat-dev
 libseccomp2
 libsecret-1-0
@@ -355,6 +356,7 @@ pciutils
 perl
 perl-base
 pipewire
+pipewire-audio-client-libraries
 pipewire-bin
 pipewire-pulse
 pipx

@@ -242,6 +242,7 @@ gir1.2-gtklayershell-0.1			install
 gir1.2-gudev-1.0:amd64				install
 gir1.2-handy-1:amd64				install
 gir1.2-harfbuzz-0.0:amd64			install
+gir1.2-ibus-1.0:amd64				install
 gir1.2-nm-1.0:amd64				install
 gir1.2-notify-0.7:amd64				install
 gir1.2-packagekitglib-1.0			install
@@ -564,6 +565,7 @@ libdebhelper-perl				install
 libdebuginfod-common				install
 libdebuginfod1t64:amd64				install
 libdecor-0-0:amd64				install
+libdecor-0-dev:amd64				install
 libdecor-0-plugin-1-gtk:amd64			install
 libdeflate-dev:amd64				install
 libdeflate0:amd64				install
@@ -805,6 +807,7 @@ libhwy-dev:amd64				install
 libhwy1t64:amd64				install
 libhyphen0:amd64				install
 libibus-1.0-5:amd64				install
+libibus-1.0-dev:amd64				install
 libice-dev:amd64				install
 libice6:amd64					install
 libicu-dev:amd64				install
@@ -1368,6 +1371,7 @@ libpsl5t64:amd64				install
 libpthreadpool0:amd64				install
 libpugixml-dev:amd64				install
 libpugixml1v5:amd64				install
+libpulse-dev:amd64				install
 libpulse-mainloop-glib0:amd64			install
 libpulse0:amd64					install
 libpulsedsp:amd64				install
@@ -1508,6 +1512,7 @@ librsvg2-dev:amd64				install
 librtmp1:amd64					install
 librubberband2:amd64				install
 libsamplerate0:amd64				install
+libsamplerate0-dev:amd64			install
 libsasl2-2:amd64				install
 libsasl2-modules:amd64				install
 libsasl2-modules-db:amd64			install
@@ -1516,6 +1521,7 @@ libscim8v5:amd64				install
 libsdbus-c++-dev:amd64				install
 libsdbus-c++2:amd64				install
 libsdl2-2.0-0:amd64				install
+libsdl2-dev:amd64				install
 libseat-dev:amd64				install
 libseat1:amd64					install
 libseccomp2:amd64				install
@@ -1552,6 +1558,7 @@ libsmartcols1:amd64				install
 libsmbclient0:amd64				install
 libsnappy1v5:amd64				install
 libsndfile1:amd64				install
+libsndio-dev:amd64				install
 libsndio7.0:amd64				install
 libsodium23:amd64				install
 libsord-0-0:amd64				install
@@ -1860,15 +1867,19 @@ libxrender1:amd64				install
 libxres1:amd64					install
 libxshmfence1:amd64				install
 libxslt1.1:amd64				install
+libxss-dev:amd64				install
 libxss1:amd64					install
+libxt-dev:amd64					install
 libxt6t64:amd64					install
 libxtables12:amd64				install
 libxtst-dev:amd64				install
 libxtst6:amd64					install
+libxv-dev:amd64					install
 libxv1:amd64					install
 libxvidcore4:amd64				install
 libxvmc1:amd64					install
 libxxf86dga1:amd64				install
+libxxf86vm-dev:amd64				install
 libxxf86vm1:amd64				install
 libxxhash-dev:amd64				install
 libxxhash0:amd64				install
@@ -2014,7 +2025,10 @@ pigz						install
 pinentry-curses					install
 pinentry-gnome3					install
 pipewire:amd64					install
+pipewire-alsa:amd64				install
+pipewire-audio-client-libraries			install
 pipewire-bin					install
+pipewire-jack:amd64				install
 pipewire-pulse					install
 pipx						install
 pkexec						install
