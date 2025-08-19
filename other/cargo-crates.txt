@@ -4,5 +4,7 @@ img_watermarker
 just
 lsd
 starship
+swww
+swww-daemon
 wasm-pack
 zoxide
