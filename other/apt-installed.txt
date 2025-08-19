@@ -331,6 +331,7 @@ mousepad
 mpv
 mpv-mpris
 nano
+nautilus
 ncurses-base
 ncurses-bin
 ncurses-term

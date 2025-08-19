@@ -228,6 +228,7 @@ gir1.2-appstream-1.0:amd64			install
 gir1.2-atk-1.0:amd64				install
 gir1.2-atspi-2.0:amd64				install
 gir1.2-cloudproviders-0.3.0:amd64		install
+gir1.2-evince-3.0:amd64				install
 gir1.2-freedesktop:amd64			install
 gir1.2-freedesktop-dev:amd64			install
 gir1.2-gdkpixbuf-2.0:amd64			install
@@ -236,13 +237,17 @@ gir1.2-girepository-2.0-dev:amd64		install
 gir1.2-glib-2.0:amd64				install
 gir1.2-glib-2.0-dev:amd64			install
 gir1.2-graphene-1.0:amd64			install
+gir1.2-gst-plugins-base-1.0:amd64		install
+gir1.2-gstreamer-1.0:amd64			install
 gir1.2-gtk-3.0:amd64				install
 gir1.2-gtk-4.0:amd64				install
 gir1.2-gtklayershell-0.1			install
+gir1.2-gtksource-4:amd64			install
 gir1.2-gudev-1.0:amd64				install
 gir1.2-handy-1:amd64				install
 gir1.2-harfbuzz-0.0:amd64			install
 gir1.2-ibus-1.0:amd64				install
+gir1.2-javascriptcoregtk-4.1:amd64		install
 gir1.2-nm-1.0:amd64				install
 gir1.2-notify-0.7:amd64				install
 gir1.2-packagekitglib-1.0			install
@@ -250,14 +255,19 @@ gir1.2-pango-1.0:amd64				install
 gir1.2-polkit-1.0				install
 gir1.2-rsvg-2.0:amd64				install
 gir1.2-secret-1:amd64				install
+gir1.2-soup-3.0:amd64				install
+gir1.2-webkit2-4.1:amd64			install
 girepository-tools:amd64			install
 git						install
 git-man						install
+gjs						install
 glib-networking:amd64				install
 glib-networking-common				install
 glib-networking-services			install
 glslang-tools					install
+gnome-desktop3-data				install
 gnome-icon-theme				install
+gnome-sushi					install
 gnome-themes-extra-data				install
 gnu-which					install
 gnupg						install
@@ -292,6 +302,7 @@ grub-efi-amd64-unsigned				install
 grub2-common					install
 gsettings-desktop-schemas			install
 gstreamer1.0-gl:amd64				install
+gstreamer1.0-gtk3:amd64				install
 gstreamer1.0-libav:amd64			install
 gstreamer1.0-plugins-bad:amd64			install
 gstreamer1.0-plugins-base:amd64			install
@@ -299,6 +310,11 @@ gstreamer1.0-plugins-good:amd64			install
 gstreamer1.0-x:amd64				install
 gtk-update-icon-cache				install
 gtk2-engines-pixbuf:amd64			install
+gvfs:amd64					install
+gvfs-backends					install
+gvfs-common					install
+gvfs-daemons					install
+gvfs-libs:amd64					install
 gzip						install
 hicolor-icon-theme				install
 hostname					install
@@ -446,6 +462,7 @@ libavahi-client3:amd64				install
 libavahi-common-data:amd64			install
 libavahi-common3:amd64				install
 libavahi-core7:amd64				install
+libavahi-glib1:amd64				install
 libavc1394-0:amd64				install
 libavcodec-dev:amd64				install
 libavcodec61:amd64				install
@@ -539,6 +556,7 @@ libcrypt1:amd64					install
 libcryptsetup12:amd64				install
 libctf-nobfd0:amd64				install
 libctf0:amd64					install
+libcue2:amd64					install
 libcups2t64:amd64				install
 libcurl3t64-gnutls:amd64			install
 libcurl4t64:amd64				install
@@ -619,8 +637,11 @@ libev-dev:amd64					install
 libev4t64:amd64					install
 libevdev-dev:amd64				install
 libevdev2:amd64					install
+libevdocument3-4t64:amd64			install
 libevent-2.1-7t64:amd64				install
 libevent-core-2.1-7t64:amd64			install
+libevview3-3t64:amd64				install
+libexempi8:amd64				install
 libexif12:amd64					install
 libexiv2-28:amd64				install
 libexiv2-data					install
@@ -683,6 +704,8 @@ libgcr-base-3-1:amd64				install
 libgcr-ui-3-1:amd64				install
 libgcrypt20:amd64				install
 libgd3:amd64					install
+libgdata-common					install
+libgdata22:amd64				install
 libgdbm-compat4t64:amd64			install
 libgdbm6t64:amd64				install
 libgdk-pixbuf-2.0-0:amd64			install
@@ -690,7 +713,9 @@ libgdk-pixbuf-2.0-dev:amd64			install
 libgdk-pixbuf2.0-bin				install
 libgdk-pixbuf2.0-common				install
 libgee-0.8-2:amd64				install
+libgexiv2-2:amd64				install
 libgfortran5:amd64				install
+libgif7:amd64					install
 libgio-2.0-dev:amd64				install
 libgio-2.0-dev-bin				install
 libgirara-gtk3-4:amd64				install
@@ -700,6 +725,7 @@ libgirepository-2.0-0:amd64			install
 libgirepository-2.0-dev:amd64			install
 libgirepository1.0-dev				install
 libgit2-1.9:amd64				install
+libgjs0g:amd64					install
 libgl-dev:amd64					install
 libgl1:amd64					install
 libgl1-mesa-dev:amd64				install
@@ -725,11 +751,18 @@ libglx0:amd64					install
 libgme0:amd64					install
 libgmock-dev:amd64				install
 libgmp10:amd64					install
+libgnome-autoar-0-0:amd64			install
+libgnome-desktop-4-2t64:amd64			install
 libgnutls30t64:amd64				install
+libgoa-1.0-0b:amd64				install
+libgoa-1.0-common				install
 libgomp1:amd64					install
 libgpg-error0:amd64				install
 libgpgme11t64:amd64				install
 libgpgmepp6t64:amd64				install
+libgphoto2-6t64:amd64				install
+libgphoto2-l10n					install
+libgphoto2-port12t64:amd64			install
 libgpm2:amd64					install
 libgprofng0:amd64				install
 libgranite-common				install
@@ -742,6 +775,8 @@ libgs-common					install
 libgs10:amd64					install
 libgs10-common					install
 libgsettings-qt1:amd64				install
+libgsf-1-114:amd64				install
+libgsf-1-common					install
 libgsm1:amd64					install
 libgspell-1-3:amd64				install
 libgspell-1-common				install
@@ -773,6 +808,7 @@ libgulkan-dev:amd64				install
 libgupnp-1.6-0:amd64				install
 libgupnp-igd-1.6-0:amd64			install
 libgusb2:amd64					install
+libgxps2t64:amd64				install
 libhandy-1-0:amd64				install
 libharfbuzz-cairo0:amd64			install
 libharfbuzz-dev:amd64				install
@@ -839,6 +875,7 @@ libip4tc2:amd64					install
 libip6tc2:amd64					install
 libipc-system-simple-perl			install
 libipt2						install
+libiptcdata0:amd64				install
 libisl23:amd64					install
 libitm1:amd64					install
 libiw30t64:amd64				install
@@ -1103,6 +1140,7 @@ libklibc:amd64					install
 libklipper6					install
 libkmod2:amd64					install
 libkmpris6					install
+libkpathsea6:amd64				install
 libkpipewire-data				install
 libkpipewire6:amd64				install
 libkpipewiredmabuf6:amd64			install
@@ -1200,6 +1238,7 @@ libmodplug1:amd64				install
 libmount-dev:amd64				install
 libmount1:amd64					install
 libmousepad0:amd64				install
+libmozjs-128-0:amd64				install
 libmp3lame0:amd64				install
 libmpc3:amd64					install
 libmpcdec6:amd64				install
@@ -1209,6 +1248,7 @@ libmpfr6:amd64					install
 libmpg123-0t64:amd64				install
 libmplex2-2.1-0t64:amd64			install
 libmsgpack-c2:amd64				install
+libmsgraph-1-1:amd64				install
 libmtdev-dev:amd64				install
 libmtdev1t64:amd64				install
 libmtp-common					install
@@ -1282,6 +1322,8 @@ libopenmpt0t64:amd64				install
 libopenni2-0:amd64				install
 libopus0:amd64					install
 liborc-0.4-0t64:amd64				install
+libosinfo-1.0-0:amd64				install
+libosinfo-l10n					install
 libp11-kit0:amd64				install
 libpackagekit-glib2-18:amd64			install
 libpackagekitqt6-1:amd64			install
@@ -1355,6 +1397,8 @@ libpoppler-glib8t64:amd64			install
 libpoppler-qt6-3t64:amd64			install
 libpoppler147:amd64				install
 libpopt0:amd64					install
+libportal-gtk4-1:amd64				install
+libportal1:amd64				install
 libpostproc58:amd64				install
 libpowerdevilcore2:amd64			install
 libppx-derivers-ocaml-dev			install
@@ -1563,8 +1607,10 @@ libsndio7.0:amd64				install
 libsodium23:amd64				install
 libsord-0-0:amd64				install
 libsoundtouch1:amd64				install
+libsoup-2.4-1:amd64				install
 libsoup-3.0-0:amd64				install
 libsoup-3.0-common				install
+libsoup2.4-common				install
 libsource-highlight-common			install
 libsource-highlight4t64:amd64			install
 libsoxr0:amd64					install
@@ -1575,6 +1621,7 @@ libspa-0.2-modules:amd64			install
 libspandsp2t64:amd64				install
 libspatialaudio0t64:amd64			install
 libspdlog1.15:amd64				install
+libspectre1:amd64				install
 libspeechd2:amd64				install
 libspeex1:amd64					install
 libspeexdsp1:amd64				install
@@ -1639,6 +1686,7 @@ libtiff6:amd64					install
 libtiffxx6:amd64				install
 libtimedate-perl				install
 libtinfo6:amd64					install
+libtinysparql-3.0-0:amd64			install
 libtirpc-common					install
 libtirpc3t64:amd64				install
 libtk8.6:amd64					install
@@ -1647,6 +1695,8 @@ libtomlplusplus-dev:amd64			install
 libtomlplusplus3t64:amd64			install
 libtommath1:amd64				install
 libtool						install
+libtotem-plparser-common			install
+libtotem-plparser18:amd64			install
 libtree-sitter0.22:amd64			install
 libtry-tiny-perl				install
 libts0t64:amd64					install
@@ -1966,6 +2016,8 @@ mpv						install
 mpv-mpris					install
 nano						install
 native-architecture				install
+nautilus					install
+nautilus-data					install
 ncurses-base					install
 ncurses-bin					install
 ncurses-term					install
@@ -1998,6 +2050,7 @@ openssh-client					install
 openssl						install
 openssl-provider-legacy				install
 os-prober					install
+osinfo-db					install
 oxygen-sounds					install
 packagekit					install
 packagekit-tools				install
@@ -2379,10 +2432,12 @@ thunar						install
 thunar-data					install
 thunar-volman					install
 timgm6mb-soundfont				install
+tinysparql					install
 tk8.6-blt2.5					install
 tmux						install
 tpm-udev					install
 traceroute					install
+tracker-extract					install
 tree						install
 tty-clock					install
 tumbler						install
@@ -2456,6 +2511,7 @@ xdg-desktop-portal-gtk				install
 xdg-desktop-portal-lxqt				install
 xdg-desktop-portal-wlr				install
 xdg-user-dirs					install
+xdg-user-dirs-gtk				install
 xdg-utils					install
 xfconf						install
 xfonts-base					install
