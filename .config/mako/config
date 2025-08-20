@@ -1,3 +1,50 @@
+# ======================= mako quick usage =======================
+# Reload:
+#   pkill -x mako 2>/dev/null; mako &
+# Smoke tests:
+#   notify-send "Build finished" "No errors"
+#   notify-send -u critical "Battery low" "Plug in now"
+#   notify-send -i dialog-information "With icon" "Icon render check"
+#
+# Sort order:
+#   sort=-time is default. You can use +time, -priority, +priority.
+#
+# Urgencies you can match in sections:
+#   [urgency=low], [urgency=normal], [urgency=critical]
+#
+# Markup:
+#   markup=1 enables Pango. You can use <b>bold</b>, <i>italic</i> in format and bodies.
+#
+# Colors and opacity:
+#   Colors accept #RRGGBB or #RRGGBBAA. The last AA controls opacity.
+#
+# Corners:
+#   border-radius supports 1 to 4 comma-separated values
+#   (all, vertical-horiz, top-horiz-bottom, top-right-bottom-left).
+#
+# Icons:
+#   icons=1 toggles icons. max-icon-size caps size.
+#   icon-border-radius rounds icon corners.
+#
+# Position:
+#   anchor=top-right|top-center|... sets screen corner or center.
+#   layer=overlay keeps notifications above fullscreen apps.
+#
+# History and control:
+#   max-history controls how many expired items are kept.
+#   Clear everything: makoctl dismiss -a
+#
+# Do not disturb mode:
+#   Enable:  makoctl mode -a do-not-disturb
+#   Disable: makoctl mode -r do-not-disturb
+#
+# Matching order matters:
+#   If several sections match, the last one wins.
+#
+# Autostart in Hyprland:
+#   Put this in hyprland.conf:  exec-once = mako
+# ================================================================
+
 # ===== Catppuccin Mocha ===========
 layer=overlay
 anchor=top-right
