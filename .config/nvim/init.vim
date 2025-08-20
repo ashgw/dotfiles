@@ -179,7 +179,22 @@ require("lualine").setup({
   sections = {
     lualine_a = { { "mode", separator = { left = "" }, right_padding = 2 } },
     lualine_b = { "branch", "diff", "diagnostics" },
-    lualine_c = { { "filename", path = 1 } },
+    lualine_c = {
+      {
+        "filename",
+        path = 0,
+        file_status = false,
+        newfile_status = false,
+        fmt = function(name)
+          local max = 15 -- in my terminal ts look nice
+          if #name <= max then return name end
+          local ext = name:match("(%.[^%.]+)$") or ""
+          local keep = max - #ext - 1     -- room for the ellipsis
+          if keep < 1 then return name:sub(1, max - 1) .. "…" end
+          return name:sub(1, keep) .. "…" .. ext
+        end,
+      },
+    },
     lualine_x = { "encoding", "fileformat", "filetype" },
     lualine_y = { "progress" },
     lualine_z = { { "location", separator = { right = "" }, left_padding = 2 } },
