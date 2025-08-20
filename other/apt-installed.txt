@@ -183,6 +183,7 @@ libgssapi-krb5-2
 libgtk-3-bin
 libgtk-3-dev
 libgtk-4-dev
+libgtk-layer-shell-dev
 libgulkan-0.15-0t64
 libgulkan-dev
 libhogweed6t64
@@ -310,6 +311,7 @@ libzip-dev
 libzstd1
 linux-image-amd64
 linux-sysctl-defaults
+lm-sensors
 locales
 login
 login.defs
@@ -343,9 +345,11 @@ network-manager
 network-manager-gnome
 nftables
 ninja-build
+nodejs
 nvtop
 nwg-displays
 nwg-look
+obs-studio
 openssh-client
 openssl
 openssl-provider-legacy
@@ -412,6 +416,7 @@ slirp4netns
 slurp
 speedtest-cli
 spirv-tools
+spotify-client
 sqv
 strace
 sudo

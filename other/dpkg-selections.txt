@@ -136,6 +136,7 @@ dpkg						install
 dpkg-dev					install
 dracut-install					install
 drkonqi						install
+dvisvgm						install
 dwz						install
 e2fsprogs					install
 efibootmgr					install
@@ -183,6 +184,7 @@ fonts-hack					install
 fonts-lato					install
 fonts-liberation				install
 fonts-liberation-sans-narrow			install
+fonts-lmodern					install
 fonts-noto					install
 fonts-noto-cjk					install
 fonts-noto-cjk-extra				install
@@ -796,6 +798,7 @@ libgtk-4-bin					install
 libgtk-4-common					install
 libgtk-4-dev:amd64				install
 libgtk-4-media-gstreamer			install
+libgtk-layer-shell-dev				install
 libgtk-layer-shell0				install
 libgtkmm-3.0-1t64:amd64				install
 libgtkmm-4.0-0:amd64				install
@@ -805,6 +808,7 @@ libgudev-1.0-0:amd64				install
 libgudev-1.0-dev:amd64				install
 libgulkan-0.15-0t64:amd64			install
 libgulkan-dev:amd64				install
+libgumbo3:amd64					install
 libgupnp-1.6-0:amd64				install
 libgupnp-igd-1.6-0:amd64			install
 libgusb2:amd64					install
@@ -1244,6 +1248,7 @@ libmpc3:amd64					install
 libmpcdec6:amd64				install
 libmpdclient2t64:amd64				install
 libmpeg2encpp-2.1-0t64:amd64			install
+libmpfi0:amd64					install
 libmpfr6:amd64					install
 libmpg123-0t64:amd64				install
 libmplex2-2.1-0t64:amd64			install
@@ -1255,6 +1260,7 @@ libmtp-common					install
 libmtp-runtime					install
 libmtp9t64:amd64				install
 libmujs3:amd64					install
+libmupdf25.1					install
 libmysofa1:amd64				install
 libnautilus-extension4:amd64			install
 libncurses-dev:amd64				install
@@ -1297,6 +1303,7 @@ libnss3:amd64					install
 libntfs-3g89t64:amd64				install
 libnuma1:amd64					install
 libnvme1t64					install
+libobs0t64:amd64				install
 libocaml-compiler-libs-ocaml-dev		install
 libocplib-endian-ocaml				install
 libocplib-endian-ocaml-dev			install
@@ -1399,7 +1406,9 @@ libpoppler147:amd64				install
 libpopt0:amd64					install
 libportal-gtk4-1:amd64				install
 libportal1:amd64				install
+libportaudio2:amd64				install
 libpostproc58:amd64				install
+libpotrace0:amd64				install
 libpowerdevilcore2:amd64			install
 libppx-derivers-ocaml-dev			install
 libppxlib-ocaml-dev				install
@@ -1412,6 +1421,7 @@ libproxy-tools					install
 libproxy1v5:amd64				install
 libpskc0t64:amd64				install
 libpsl5t64:amd64				install
+libptexenc1:amd64				install
 libpthreadpool0:amd64				install
 libpugixml-dev:amd64				install
 libpugixml1v5:amd64				install
@@ -1438,6 +1448,7 @@ libqmi-glib5:amd64				install
 libqmi-proxy					install
 libqmi-utils					install
 libqmobipocket6-2:amd64				install
+libqrcodegencpp1:amd64				install
 libqrencode4:amd64				install
 libqrtr-glib0:amd64				install
 libqt5core5t64:amd64				install
@@ -1633,6 +1644,7 @@ libsqlite3-0:amd64				install
 libsquashfuse0:amd64				install
 libsratom-0-0:amd64				install
 libsrt1.5-gnutls:amd64				install
+libsrt1.5-openssl:amd64				install
 libsrtp2-1:amd64				install
 libss2:amd64					install
 libssh-4:amd64					install
@@ -1667,7 +1679,9 @@ libtbbmalloc2:amd64				install
 libtcl8.6:amd64					install
 libtdb1:amd64					install
 libteamdctl0:amd64				install
+libteckit0:amd64				install
 libtevent0t64:amd64				install
+libtexlua53-5:amd64				install
 libtext-charwidth-perl:amd64			install
 libtext-csv-perl				install
 libtext-csv-xs-perl:amd64			install
@@ -1951,6 +1965,7 @@ libzstd1:amd64					install
 libzvbi-common					install
 libzvbi0t64:amd64				install
 libzxing3:amd64					install
+libzzip-0-13t64:amd64				install
 linguist-qt6					install
 linux-base					install
 linux-image-6.12.38+deb13-amd64			install
@@ -1959,6 +1974,7 @@ linux-image-amd64				install
 linux-libc-dev					install
 linux-sysctl-defaults				install
 lm-sensors					install
+lmodern						install
 locales						install
 login						install
 login.defs					install
@@ -2014,6 +2030,7 @@ mount						install
 mousepad					install
 mpv						install
 mpv-mpris					install
+mupdf-tools					install
 nano						install
 native-architecture				install
 nautilus					install
@@ -2035,10 +2052,13 @@ nftables					install
 ninja-build					install
 nm-connection-editor				install
 node-popper2					install
+nodejs						install
 ntfs-3g						install
 nvtop						install
 nwg-displays					install
 nwg-look					install
+obs-plugins:amd64				install
+obs-studio					install
 ocaml						install
 ocaml-base					install
 ocaml-findlib					install
@@ -2405,6 +2425,7 @@ sound-theme-freedesktop				install
 speedtest-cli					install
 sphinx-rtd-theme-common				install
 spirv-tools					install
+spotify-client					install
 sq						install
 sqv						install
 sse3-support					install
@@ -2423,11 +2444,15 @@ systemd-sysv					install
 systemd-timesyncd				install
 systemsettings					install
 sysvinit-utils					install
+t1utils						install
 tar						install
 task-english					install
 task-laptop					install
 tasksel						install
 tasksel-data					install
+tex-common					install
+texlive-base					install
+texlive-binaries				install
 thunar						install
 thunar-data					install
 thunar-volman					install

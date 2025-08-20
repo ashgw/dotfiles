@@ -1,6 +1,63 @@
 {
     "pipx_spec_version": "0.1",
     "venvs": {
+        "mypy": {
+            "metadata": {
+                "injected_packages": {},
+                "main_package": {
+                    "app_paths": [
+                        {
+                            "__Path__": "/home/ashgw/.local/share/pipx/venvs/mypy/bin/dmypy",
+                            "__type__": "Path"
+                        },
+                        {
+                            "__Path__": "/home/ashgw/.local/share/pipx/venvs/mypy/bin/mypy",
+                            "__type__": "Path"
+                        },
+                        {
+                            "__Path__": "/home/ashgw/.local/share/pipx/venvs/mypy/bin/mypyc",
+                            "__type__": "Path"
+                        },
+                        {
+                            "__Path__": "/home/ashgw/.local/share/pipx/venvs/mypy/bin/stubgen",
+                            "__type__": "Path"
+                        },
+                        {
+                            "__Path__": "/home/ashgw/.local/share/pipx/venvs/mypy/bin/stubtest",
+                            "__type__": "Path"
+                        }
+                    ],
+                    "app_paths_of_dependencies": {},
+                    "apps": [
+                        "dmypy",
+                        "mypy",
+                        "mypyc",
+                        "stubgen",
+                        "stubtest"
+                    ],
+                    "apps_of_dependencies": [],
+                    "include_apps": true,
+                    "include_dependencies": false,
+                    "man_pages": [],
+                    "man_pages_of_dependencies": [],
+                    "man_paths": [],
+                    "man_paths_of_dependencies": {},
+                    "package": "mypy",
+                    "package_or_url": "mypy",
+                    "package_version": "1.17.1",
+                    "pinned": false,
+                    "pip_args": [],
+                    "suffix": ""
+                },
+                "pipx_metadata_version": "0.5",
+                "python_version": "Python 3.13.5",
+                "source_interpreter": {
+                    "__Path__": "/home/ashgw/miniconda3/bin/python3.13",
+                    "__type__": "Path"
+                },
+                "venv_args": []
+            }
+        },
         "oathtool": {
             "metadata": {
                 "injected_packages": {},
@@ -25,6 +82,43 @@
                     "package": "oathtool",
                     "package_or_url": "oathtool",
                     "package_version": "2.4.0",
+                    "pinned": false,
+                    "pip_args": [],
+                    "suffix": ""
+                },
+                "pipx_metadata_version": "0.5",
+                "python_version": "Python 3.13.5",
+                "source_interpreter": {
+                    "__Path__": "/home/ashgw/miniconda3/bin/python3.13",
+                    "__type__": "Path"
+                },
+                "venv_args": []
+            }
+        },
+        "ruff": {
+            "metadata": {
+                "injected_packages": {},
+                "main_package": {
+                    "app_paths": [
+                        {
+                            "__Path__": "/home/ashgw/.local/share/pipx/venvs/ruff/bin/ruff",
+                            "__type__": "Path"
+                        }
+                    ],
+                    "app_paths_of_dependencies": {},
+                    "apps": [
+                        "ruff"
+                    ],
+                    "apps_of_dependencies": [],
+                    "include_apps": true,
+                    "include_dependencies": false,
+                    "man_pages": [],
+                    "man_pages_of_dependencies": [],
+                    "man_paths": [],
+                    "man_paths_of_dependencies": {},
+                    "package": "ruff",
+                    "package_or_url": "ruff",
+                    "package_version": "0.12.9",
                     "pinned": false,
                     "pip_args": [],
                     "suffix": ""
