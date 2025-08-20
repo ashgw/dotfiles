@@ -31,10 +31,8 @@
     }
   },
 
-  // Time in Tunisia, no month in display
   "clock": {
     "interval": 1,
-    "timezone": "Africa/Tunis",
     "format": "  {:%a %d  %H:%M}",
     "tooltip": false
   },
