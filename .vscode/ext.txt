@@ -52,10 +52,10 @@ tomoki1207.pdf.1.2.2
 unifiedjs.vscode.mdx
 unthrottled.doki.theme
 usernamehw.errorlens.3.26.0
-vscodevim.vim.1.29.0
 wallabyjs.console.ninja
 yile.ou.paddy
 yoavbls.pretty.ts
 yzhang.markdown.all
 zhuangtongfa.material.theme
 zignd.html.css
+
