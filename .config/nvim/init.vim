@@ -240,20 +240,27 @@ let g:AutoPairsMapCR = 0
 let g:kite_supported_languages = ['python', 'javascript']
 
 " CoC global extensions
-let g:coc_global_extensions = ['coc-tsserver', 'coc-python', 'coc-rust-analyzer', 'coc-go', 'coc-docker']
+let g:coc_global_extensions = [
+\ 'coc-tsserver',
+\ '@yaegassy/coc-ruff',
+\ '@yaegassy/coc-mypy',
+\ 'coc-rust-analyzer',
+\ 'coc-go',
+\ 'coc-docker'
+\ ]
 
 " configure auto imports for TS
-let g:coc_user_config = {
+let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
 \   'typescript.suggest.autoImports': v:true,
 \   'javascript.suggest.autoImports': v:true,
 \   'typescript.preferences.importModuleSpecifier': 'relative',
 \   'javascript.preferences.importModuleSpecifier': 'relative',
 \   'suggest.noselect': v:false
-\ }
+\ }, 'force')
 
 " Prisma language server support via CoC
 if executable('prisma-language-server')
-  let g:coc_user_config = {
+  let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
   \   'languageserver': {
   \     'prisma': {
   \       'command': 'prisma-language-server',
@@ -263,8 +270,18 @@ if executable('prisma-language-server')
   \       'trace.server': 'verbose'
   \     }
   \   }
-  \ }
+  \ }, 'force')
 endif
+
+" Python via coc-ruff and coc-mypy
+let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
+\  'ruff.enable': v:true,
+\  'ruff.nativeServer': v:true,
+\  'mypy-type-checker.enable': v:true,
+\  'mypy-type-checker.useDmypy': v:true,
+\  'mypy-type-checker.importStrategy': 'fromEnvironment',
+\  'mypy-type-checker.cwd': '${nearestConfig}'
+\}, 'force')
 
 " Telescope config
 lua << EOF
