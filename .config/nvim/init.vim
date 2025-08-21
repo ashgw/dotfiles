@@ -1,4 +1,3 @@
-
 " =========================================================d
 "                 LEADER & BOOTSTRAP SETUP
 " ==========================================================
@@ -88,6 +87,7 @@ Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 Plug 'jiangmiao/auto-pairs'
 Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
+Plug 'nvim-treesitter/nvim-treesitter-textobjects' " for vaf/vif
 Plug 'wbthomason/packer.nvim'
 Plug 'onsails/lspkind-nvim'
 Plug 'neovim/nvim-lspconfig'
@@ -123,6 +123,14 @@ Plug 'plasticboy/vim-markdown'
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
 call plug#end()
+
+" Bridge Treesitter parser names to filetypes used by plugins
+lua << EOF
+pcall(function()
+  vim.treesitter.language.register('tsx', 'typescriptreact')
+  vim.treesitter.language.register('javascript', 'javascriptreact')
+end)
+EOF
 
 " ==========================================================
 "                      PLUGIN CONFIG
@@ -186,10 +194,10 @@ require("lualine").setup({
         file_status = false,
         newfile_status = false,
         fmt = function(name)
-          local max = 15 -- in my terminal ts look nice
+          local max = 15
           if #name <= max then return name end
           local ext = name:match("(%.[^%.]+)$") or ""
-          local keep = max - #ext - 1     -- room for the ellipsis
+          local keep = max - #ext - 1
           if keep < 1 then return name:sub(1, max - 1) .. "…" end
           return name:sub(1, keep) .. "…" .. ext
         end,
@@ -287,7 +295,7 @@ if executable('prisma-language-server')
 endif
 
 " ================= Python via Ruff + Mypy only ================
-" 1) Make CoC use Node 20 if available under nvm (ruff extension is sensitive)
+" 1) Make CoC use Node 20 if available under nvm
 if !exists('g:coc_node_path')
   let s:nodes = glob('~/.nvm/versions/node/v20*/bin/node', 1, 1)
   if len(s:nodes) > 0
@@ -403,6 +411,30 @@ require'nvim-treesitter.configs'.setup {
   highlight = {
     enable = true,
     additional_vim_regex_highlighting = false,
+  },
+  textobjects = {
+    select = {
+      enable = true,
+      lookahead = true,
+      keymaps = {
+        ["af"] = "@function.outer",
+        ["if"] = "@function.inner",
+        ["ac"] = "@class.outer",
+        ["ic"] = "@class.inner",
+      },
+    },
+    move = {
+      enable = true,
+      set_jumps = true,
+      goto_next_start = {
+        ["]m"] = "@function.outer",
+        ["]]"] = "@class.outer",
+      },
+      goto_previous_start = {
+        ["[m"] = "@function.outer",
+        ["[["] = "@class.outer",
+      },
+    },
   },
 }
 EOF
@@ -550,7 +582,8 @@ nnoremap <silent> <leader>R <cmd>Telescope grep_string<cr>
 " ==========================================================
 "                  AUTOCOMMANDS & FUNCTIONS
 " ==========================================================
-autocmd BufNewFile,BufRead *.tsx,*.jsx set filetype=typescriptreact
+autocmd BufNewFile,BufRead *.tsx set filetype=typescriptreact
+autocmd BufNewFile,BufRead *.jsx set filetype=javascriptreact
 
 autocmd BufWritePre * let currPos = getpos(".")
 autocmd BufWritePre * %s/\s\+$//e
