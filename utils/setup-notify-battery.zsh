@@ -1,17 +1,13 @@
 #!/usr/bin/env zsh
-PATH=/usr/sbin:/usr/bin:/sbin:/bin:$HOME/.local/bin:$HOME/bin:$PATH
-set -euo pipefail 2>/dev/null || true
-setopt pipefail
-
-# =========================
-# Battery notifications
 # Debian Trixie + Hyprland + Mako
-# Idempotent setup/destroy script
-# =========================
+# Idempotent battery notifications with test sweep
 
-# --- tweakables ---
-: "${THRESHOLDS:=50 20 10 5 1}"   # fire when level <= these, on discharge
-: "${COOLDOWN_MIN:=20}"           # minutes between repeats for same bucket
+emulate -L zsh
+setopt err_return pipefail no_unset
+
+# --- tweakables (env overrides allowed) ---
+: "${THRESHOLDS:=50 20 10 5 1}"   # fire when level <= these while discharging
+: "${COOLDOWN_MIN:=20}"           # minutes between repeats for the same bucket
 
 # --- paths ---
 BIN="$HOME/.local/bin/battery-notify"
@@ -20,32 +16,26 @@ UNIT_DIR="$HOME/.config/systemd/user"
 SVC="$UNIT_DIR/battery-notify.service"
 TMR="$UNIT_DIR/battery-notify.timer"
 
-# --- ui ---
-blue(){  print -P "%F{4}[*]%f $*"; }
-ok(){    print -P "%F{2}[ok]%f $*"; }
-warn(){  print -P "%F{3}[warn]%f $*"; }
-err(){   print -P "%F{1}[err]%f $*"; exit 1; }
-
+# --- ui helpers ---
+blue(){ print -P "%F{4}[*]%f $*"; }
+ok(){   print -P "%F{2}[ok]%f $*"; }
+warn(){ print -P "%F{3}[warn]%f $*"; }
+err(){  print -P "%F{1}[err]%f $*"; exit 1; }
 have(){ command -v "$1" >/dev/null 2>&1; }
 
 need_user_systemd(){
   systemctl --user show-environment >/dev/null 2>&1 || \
-    err "User systemd not active. Log in with a systemd user session."
+    err "User systemd not active. Log into a systemd user session."
 }
 
-# safe writer, no dirname, no shadowing $path
 write_file(){
   local target="$1" content="$2" dir tmp
-  dir="${target:h}"
-  [[ -n "$dir" ]] && mkdir -p "$dir"
-  tmp="$(mktemp)"
-  print -r -- "$content" > "$tmp"
+  dir="${target:h}"; [[ -n "$dir" ]] && mkdir -p "$dir"
+  tmp="$(mktemp)"; print -r -- "$content" > "$tmp"
   if [[ -f "$target" ]] && cmp -s "$tmp" "$target"; then
-    rm -f "$tmp"
-    ok "unchanged: $target"
+    rm -f "$tmp"; ok "unchanged: $target"
   else
-    mv "$tmp" "$target"
-    ok "wrote: $target"
+    mv "$tmp" "$target"; ok "wrote: $target"
   fi
 }
 
@@ -56,8 +46,7 @@ install_deps_hint(){
   have upower || warn "upower not found. Install: sudo apt update && sudo apt install -y upower"
 }
 
-battery_script(){
-  cat <<'SH'
+battery_script(){ cat <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -145,7 +134,7 @@ main(){
   dev=$(detect_bat) || { log "no battery device found"; exit 0; }
   read -r level state < <(read_level_and_state "$dev")
 
-  # testing hooks
+  # testing overrides
   if [[ -n "${BAT_FAKE_LEVEL:-}" ]]; then level="$BAT_FAKE_LEVEL"; fi
   if [[ -n "${BAT_FORCE_STATE:-}" ]]; then state="$BAT_FORCE_STATE"; fi
   if [[ "${BAT_FORCE:-0}" = "1" ]]; then state="discharging"; fi
@@ -176,8 +165,7 @@ main "$@"
 SH
 }
 
-service_unit(){
-  cat <<EOF
+service_unit(){ cat <<EOF
 [Unit]
 Description=Battery notify check
 ConditionPathExistsGlob=/run/user/%u/wayland-*
@@ -195,8 +183,7 @@ WantedBy=default.target
 EOF
 }
 
-timer_unit(){
-  cat <<'EOF'
+timer_unit(){ cat <<'EOF'
 [Unit]
 Description=Battery notify periodic timer
 
@@ -225,11 +212,11 @@ setup(){
   systemctl --user daemon-reload
   systemctl --user enable --now battery-notify.timer
   ok "enabled timer battery-notify.timer"
-
-  # first check
   systemctl --user start battery-notify.service
   ok "kicked a first check"
-  blue "Tweaks: export THRESHOLDS='50 20 10 5 1' or COOLDOWN_MIN=30 before setup."
+
+  blue "Test a level:  $0 test 15"
+  blue "Sweep 0..100:  $0 test-sweep"
 }
 
 destroy(){
@@ -243,33 +230,55 @@ destroy(){
   ok "removed $BIN"
   rm -rf "$STATE_DIR"
   ok "cleared state dir"
-  blue "All cleaned up."
+}
+
+status(){
+  need_user_systemd
+  systemctl --user status --no-pager battery-notify.timer || true
+  systemctl --user status --no-pager battery-notify.service || true
 }
 
 test_level(){
   local lvl="${1:-15}"
-  THRESHOLDS="$THRESHOLDS" COOLDOWN_MIN="$COOLDOWN_MIN" STATE_DIR="$STATE_DIR" \
+  mkdir -p "$STATE_DIR"
+  rm -f "$STATE_DIR"/last_* 2>/dev/null || true
+  THRESHOLDS="$THRESHOLDS" COOLDOWN_MIN=0 STATE_DIR="$STATE_DIR" \
   BAT_FORCE=1 BAT_FORCE_STATE=discharging BAT_FAKE_LEVEL="$lvl" "$BIN"
   ok "simulated level $lvl%"
+}
+
+test_sweep(){
+  blue "sweeping 0..100 to exercise notifications"
+  for lvl in {0..100}; do
+    rm -f "$STATE_DIR"/last_* 2>/dev/null || true
+    THRESHOLDS="$THRESHOLDS" COOLDOWN_MIN=0 STATE_DIR="$STATE_DIR" \
+    BAT_FORCE=1 BAT_FORCE_STATE=discharging BAT_FAKE_LEVEL="$lvl" "$BIN"
+    sleep 0.08
+  done
+  ok "sweep done"
 }
 
 usage(){
   cat <<EOF
 Usage:
-  $0 setup                install script, service, timer
-  $0 destroy              remove everything
-  $0 test <level>         simulate one notification at <level>%
+  $0 setup                 install service and timer
+  $0 destroy               uninstall everything and clear state
+  $0 status                show unit status
+  $0 test <level>          simulate one notification at <level>%
+  $0 test-sweep            iterate 0..100 for visual verification
 
-Env:
+Env overrides:
   THRESHOLDS="50 20 10 5 1"
   COOLDOWN_MIN=20
 EOF
 }
 
 case "${1:-}" in
-  setup)   setup ;;
-  destroy) destroy ;;
-  test)    shift; test_level "${1:-15}" ;;
-  *)       usage; exit 1 ;;
+  setup)       setup ;;
+  destroy)     destroy ;;
+  status)      status ;;
+  test)        shift; test_level "${1:-15}" ;;
+  test-sweep)  test_sweep ;;
+  *)           usage; exit 1 ;;
 esac
 
