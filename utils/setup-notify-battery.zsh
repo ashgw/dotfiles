@@ -6,7 +6,8 @@ emulate -L zsh
 setopt err_return pipefail no_unset
 
 # --- tweakables (env overrides allowed) ---
-: "${THRESHOLDS:=50 20 10 5 1}"   # fire when level <= these while discharging
+# : "${THRESHOLDS:=50 20 10 5 1}"   # fire when level <= these while discharging
+: "${THRESHOLDS:=$(printf '%s ' {100..0})}"
 : "${COOLDOWN_MIN:=20}"           # minutes between repeats for the same bucket
 
 # --- paths ---
