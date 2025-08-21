@@ -6,9 +6,9 @@ emulate -L zsh
 setopt err_return pipefail no_unset
 
 # --- tweakables (env overrides allowed) ---
-# : "${THRESHOLDS:=50 20 10 5 1}"   # fire when level <= these while discharging
+# Use all levels for testing. Swap back to "50 20 10 5 1" after.
 : "${THRESHOLDS:=$(printf '%s ' {100..0})}"
-: "${COOLDOWN_MIN:=20}"           # minutes between repeats for the same bucket
+: "${COOLDOWN_MIN:=20}"
 
 # --- paths ---
 BIN="$HOME/.local/bin/battery-notify"
@@ -91,6 +91,10 @@ bucket_for(){
 }
 
 should_notify(){
+  # Do not write cooldown state when forced test mode is used
+  if [[ "${BAT_FORCE:-0}" = "1" ]]; then
+    return 0
+  fi
   local bucket="$1" now last_file="$STATE_DIR/last_$bucket"
   now=$(date +%s)
   if [[ -f "$last_file" ]]; then
@@ -169,8 +173,8 @@ SH
 service_unit(){ cat <<EOF
 [Unit]
 Description=Battery notify check
-ConditionPathExistsGlob=/run/user/%u/wayland-*
-After=graphical-session.target
+# Correct Wayland runtime dir
+ConditionPathExistsGlob=%t/wayland-*
 
 [Service]
 Type=oneshot
@@ -178,9 +182,6 @@ Environment=THRESHOLDS="${THRESHOLDS}"
 Environment=COOLDOWN_MIN="${COOLDOWN_MIN}"
 Environment=STATE_DIR="${STATE_DIR}"
 ExecStart=${BIN}
-
-[Install]
-WantedBy=default.target
 EOF
 }
 
@@ -210,9 +211,14 @@ setup(){
   write_file "$SVC" "$(service_unit)"
   write_file "$TMR" "$(timer_unit)"
 
+  # purge any test cooldown state so prod can speak immediately
+  rm -rf "$STATE_DIR"; mkdir -p "$STATE_DIR"
+
   systemctl --user daemon-reload
   systemctl --user enable --now battery-notify.timer
   ok "enabled timer battery-notify.timer"
+
+  # kick a first real check
   systemctl --user start battery-notify.service
   ok "kicked a first check"
 
@@ -241,8 +247,6 @@ status(){
 
 test_level(){
   local lvl="${1:-15}"
-  mkdir -p "$STATE_DIR"
-  rm -f "$STATE_DIR"/last_* 2>/dev/null || true
   THRESHOLDS="$THRESHOLDS" COOLDOWN_MIN=0 STATE_DIR="$STATE_DIR" \
   BAT_FORCE=1 BAT_FORCE_STATE=discharging BAT_FAKE_LEVEL="$lvl" "$BIN"
   ok "simulated level $lvl%"
@@ -251,7 +255,6 @@ test_level(){
 test_sweep(){
   blue "sweeping 0..100 to exercise notifications"
   for lvl in {0..100}; do
-    rm -f "$STATE_DIR"/last_* 2>/dev/null || true
     THRESHOLDS="$THRESHOLDS" COOLDOWN_MIN=0 STATE_DIR="$STATE_DIR" \
     BAT_FORCE=1 BAT_FORCE_STATE=discharging BAT_FAKE_LEVEL="$lvl" "$BIN"
     sleep 0.08
