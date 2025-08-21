@@ -6,8 +6,7 @@ emulate -L zsh
 setopt err_return pipefail no_unset
 
 # --- tweakables (env overrides allowed) ---
-# Use all levels for testing. Swap back to "50 20 10 5 1" after.
-: "${THRESHOLDS:=$(printf '%s ' {100..0})}"
+: "${THRESHOLDS:=50 20 10 5 1}"   # fire when level <= these while discharging
 : "${COOLDOWN_MIN:=20}"
 
 # --- paths ---
