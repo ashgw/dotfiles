@@ -50,6 +50,7 @@ blueman						install
 bluetooth					install
 bluez						install
 bluez-obexd					install
+bluez-tools					install
 bolt						install
 breeze						install
 breeze-cursor-theme				install
@@ -159,6 +160,7 @@ findutils					install
 firefox-esr					install
 firmware-amd-graphics				install
 firmware-ath9k-htc				install
+firmware-atheros				install
 firmware-carl9170				install
 firmware-intel-graphics				install
 firmware-intel-misc				install
@@ -169,6 +171,7 @@ firmware-linux-nonfree				install
 firmware-mediatek				install
 firmware-misc-nonfree				install
 firmware-nvidia-graphics			install
+firmware-realtek				install
 firmware-sof-signed				install
 fontconfig					install
 fontconfig-config				install
@@ -353,6 +356,7 @@ iso-codes					install
 ispell						install
 iucode-tool					install
 iw						install
+iwd						install
 javascript-common				install
 jq						install
 kaccounts-providers				install
@@ -629,6 +633,7 @@ libegl1:amd64					install
 libegl1-mesa-dev:amd64				install
 libeis1:amd64					install
 libelf1t64:amd64				install
+libell0:amd64					install
 libenchant-2-2:amd64				install
 libencode-locale-perl				install
 libepoxy-dev:amd64				install
@@ -2054,6 +2059,7 @@ nm-connection-editor				install
 node-popper2					install
 nodejs						install
 ntfs-3g						install
+nvme-cli					install
 nvtop						install
 nwg-displays					install
 nwg-look					install
@@ -2483,6 +2489,7 @@ util-linux					install
 util-linux-extra				install
 util-linux-locales				install
 uuid-dev:amd64					install
+uuid-runtime					install
 va-driver-all:amd64				install
 vdpau-driver-all:amd64				install
 viewnior					install

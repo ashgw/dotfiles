@@ -17,6 +17,7 @@ bind9-dnsutils
 bind9-host
 blueman
 bluez
+bluez-tools
 brightnessctl
 bsdutils
 btop
@@ -68,12 +69,14 @@ file
 file-roller
 findutils
 firefox-esr
+firmware-atheros
 firmware-intel-graphics
 firmware-intel-misc
 firmware-iwlwifi
 firmware-linux
 firmware-linux-nonfree
 firmware-misc-nonfree
+firmware-realtek
 firmware-sof-signed
 fontconfig
 fonts-dejavu
@@ -123,6 +126,8 @@ intel-microcode
 inxi
 iproute2
 iputils-ping
+iw
+iwd
 jq
 keyboard-configuration
 kitty
@@ -346,6 +351,7 @@ network-manager-gnome
 nftables
 ninja-build
 nodejs
+nvme-cli
 nvtop
 nwg-displays
 nwg-look
@@ -382,6 +388,7 @@ python3-markdown
 python3-markupsafe
 python3-pip
 python3-pyquery
+python3-venv
 python3-yaml
 qalculate-gtk
 qml6-module-qtcore
@@ -414,6 +421,7 @@ sensible-utils
 shim-signed
 slirp4netns
 slurp
+smartmontools
 speedtest-cli
 spirv-tools
 spotify-client
@@ -457,6 +465,7 @@ wayland-protocols
 wev
 wget
 whiptail
+wireless-regdb
 wireless-tools
 wireplumber
 wl-clipboard
