@@ -56,6 +56,11 @@ echo "==> Restoring Cargo and rustup"
 [[ -f "$BASEDIR/cargo-crates.txt"      ]] && command -v cargo  >/dev/null && xargs -a "$BASEDIR/cargo-crates.txt" -r -n1 cargo install || true
 [[ -f "$BASEDIR/rustup-toolchains.txt" ]] && command -v rustup >/dev/null && awk '{print $1}' "$BASEDIR/rustup-toolchains.txt" | xargs -r -n1 rustup toolchain install || true
 
+echo "==> Restoring Go tools"
+if command -v go >/dev/null && [[ -f "$BASEDIR/go-tools.txt" ]]; then
+  awk '!/^($|#)/{print $0}' "$BASEDIR/go-tools.txt" | xargs -r -n1 go install || true
+fi
+
 echo "==> Restoring Homebrew lists"
 if command -v brew >/dev/null && [[ -d "$BASEDIR/brew" ]]; then
   [[ -f "$BASEDIR/brew/taps.txt"     ]] && xargs -a "$BASEDIR/brew/taps.txt"     -r brew tap || true

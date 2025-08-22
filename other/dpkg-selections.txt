@@ -72,6 +72,7 @@ bzip2-doc					install
 ca-certificates					install
 catdoc						install
 cava						install
+chafa						install
 clinfo						install
 cliphist					install
 cmake						install
@@ -542,6 +543,7 @@ libcdio-cdda2t64:amd64				install
 libcdio-paranoia2t64:amd64			install
 libcdio19t64:amd64				install
 libcdparanoia0:amd64				install
+libchafa0t64:amd64				install
 libchromaprint1:amd64				install
 libcjson1:amd64					install
 libclang-cpp19					install
@@ -1654,6 +1656,7 @@ libsrtp2-1:amd64				install
 libss2:amd64					install
 libssh-4:amd64					install
 libssh2-1t64:amd64				install
+libssl-dev:amd64				install
 libssl3t64:amd64				install
 libstartup-notification0:amd64			install
 libstartup-notification0-dev:amd64		install
@@ -2456,6 +2459,7 @@ task-english					install
 task-laptop					install
 tasksel						install
 tasksel-data					install
+terraform					install
 tex-common					install
 texlive-base					install
 texlive-binaries				install

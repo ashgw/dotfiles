@@ -26,6 +26,7 @@ busybox
 bzip2
 ca-certificates
 cava
+chafa
 cliphist
 cmake
 cmake-extras
@@ -262,6 +263,7 @@ libspng-dev
 libsqlite3-0
 libss2
 libssl3t64
+libssl-dev
 libstartup-notification0-dev
 libstdc++6
 libswresample-dev
@@ -399,6 +401,7 @@ qt5-style-kvantum
 qt6-3d-dev
 qt6-5compat-dev
 qt6-base-dev
+qt6-base-dev-tools
 qt6-base-private-dev
 qt6-charts-dev
 qt6ct
@@ -438,6 +441,7 @@ tar
 task-english
 task-laptop
 tasksel
+terraform
 thunar
 tmux
 traceroute
@@ -479,6 +483,7 @@ xdg-desktop-portal
 xdg-desktop-portal-gtk
 xdg-desktop-portal-wlr
 xdg-user-dirs
+xdg-utils
 xsel
 xwayland
 xz-utils
