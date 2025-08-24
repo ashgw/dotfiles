@@ -490,6 +490,7 @@ xz-utils
 yad
 zathura
 zathura-pdf-poppler
+zbar-tools
 zlib1g
 zsh
 zstd
