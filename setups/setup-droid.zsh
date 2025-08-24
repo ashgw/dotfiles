@@ -1,4 +1,3 @@
-
 #!/usr/bin/env zsh
 # WhatsApp-on-Linux via Waydroid
 # Usage: ./myscript.zsh setup | open | status | destroy
@@ -36,7 +35,7 @@ ensure_waydroid() {
   [[ -f "$REPO_FILE" ]] || curl -fsSL https://repo.waydro.id | sudo bash
   log "Installing waydroid and basics"
   asroot apt-get update -y
-  asroot apt-get install -y waydroid wget curl ca-certificates
+  asroot apt-get install -y waydroid wget curl ca-certificates desktop-file-utils xdg-utils
   ok "waydroid installed"
 }
 
@@ -45,7 +44,9 @@ inited() {
 }
 
 init_wd() {
-  if inited; then ok "Waydroid already initialized"; else
+  if inited; then
+    ok "Waydroid already initialized"
+  else
     log "Initializing Waydroid base image"
     asroot waydroid init
     ok "init done"
@@ -80,7 +81,6 @@ install_launcher() {
 #!/usr/bin/env bash
 set -euo pipefail
 waydroid session start >/dev/null 2>&1 || true
-# Show UI, then try to launch app
 nohup waydroid show-full-ui >/dev/null 2>&1 &
 sleep 2
 if waydroid app list 2>/dev/null | grep -q '^com.whatsapp'; then
@@ -123,6 +123,7 @@ status_now() {
 
 destroy_all() {
   log "Stopping Waydroid"
+  asroot waydroid session stop >/dev/null 2>&1 || true
   asroot systemctl stop waydroid-container || true
   asroot systemctl disable waydroid-container || true
 
@@ -143,9 +144,13 @@ destroy_all() {
     asroot apt-get update -y || true
   fi
 
+  log "Unmounting any leftover mounts"
+  asroot umount -l "$USER_DATA" 2>/dev/null || true
+
   log "Deleting Waydroid data and cache"
   asroot rm -rf "$WD_DATA"
-  rm -rf "$USER_DATA" "$CACHE_DIR"
+  asroot rm -rf "$USER_DATA"
+  rm -rf "$CACHE_DIR" || true
 
   ok "destroy completed"
 }
