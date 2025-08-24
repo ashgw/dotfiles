@@ -45,7 +45,7 @@
 #   Put this in hyprland.conf:  exec-once = mako
 # ================================================================
 
-# ===== Catppuccin Mocha ===========
+# ===== Catppuccin Mocha (fixed & clean) =====
 layer=overlay
 anchor=top-right
 margin=30,30,0,0
@@ -55,7 +55,7 @@ width=430
 height=150
 
 # font
-font=JetBrainsMono Nerd Font Medium 11
+font=JetBrainsMono Nerd Font Medium 12
 
 # palette
 # base #1e1e2e | surface0 #313244 | text #cdd6f4
