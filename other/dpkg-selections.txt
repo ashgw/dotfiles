@@ -2377,6 +2377,7 @@ qt-style-kvantum				install
 qt-style-kvantum-l10n				install
 qt-style-kvantum-themes				install
 qt5-gtk-platformtheme:amd64			install
+qt5-qmltooling-plugins:amd64			install
 qt5-style-kvantum				install
 qt5ct						install
 qt6-3d-dev:amd64				install

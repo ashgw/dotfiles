@@ -395,8 +395,14 @@ python3-yaml
 qalculate-gtk
 qml6-module-qtcore
 qml6-module-qtquick-layouts
+qml-module-qtgraphicaleffects
+qml-module-qtquick2
+qml-module-qtquick-controls2
+qml-module-qtquick-layouts
+qml-module-qtquick-window2
 qrencode
 qt5ct
+qt5-qmltooling-plugins
 qt5-style-kvantum
 qt6-3d-dev
 qt6-5compat-dev
