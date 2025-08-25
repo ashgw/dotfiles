@@ -9,7 +9,7 @@ export LC_ALL=en_US.UTF-8
 # Oh My Zsh config (must be before sourcing)
 # ───────────────────────────────
 export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="bira"
+# ZSH_THEME="bira" no need when I got starship
 plugins=(
   git
   zsh-autosuggestions
