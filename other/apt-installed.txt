@@ -291,6 +291,7 @@ libwebp-dev
 libx11-xcb-dev
 libxcb1-dev
 libxcb-composite0-dev
+libxcb-cursor0
 libxcb-cursor-dev
 libxcb-dri3-dev
 libxcb-errors-dev
