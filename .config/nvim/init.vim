@@ -122,6 +122,11 @@ Plug 'plasticboy/vim-markdown'
 " ----- LSP/Autocomplete -----
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
+" ----- Added: file ops + sudo + project replace -----
+Plug 'tpope/vim-eunuch'                 " :Rename :Delete :Move :Mkdir etc.
+Plug 'lambdalisue/suda.vim'             " w!! to write root-owned files
+Plug 'nvim-pack/nvim-spectre'           " ripgrep-powered project replace
+
 call plug#end()
 
 " Bridge Treesitter parser names to filetypes used by plugins
@@ -269,6 +274,8 @@ let g:coc_global_extensions = [
 \ 'coc-go',
 \ 'coc-docker'
 \ ]
+" Added: Jedi LSP just for Python navigation/rename (keeps mypy+ruff for checks)
+let g:coc_global_extensions += ['coc-jedi']
 
 " configure auto imports for TS
 let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
@@ -317,7 +324,8 @@ let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
 \  'mypy-type-checker.cwd': '${workspaceFolder}',
 \  'mypy-type-checker.venvPath': '.',
 \  'mypy-type-checker.venv': '.venv',
-\  'mypy-type-checker.executable': '.venv/bin/mypy'
+\  'mypy-type-checker.executable': '.venv/bin/mypy',
+\  'jedi.enable': v:true
 \}, 'force')
 
 " 3) Auto-activate .venv for Neovim python host when you open Python files
@@ -370,6 +378,8 @@ telescope.setup({
     grep_string = { only_sort_text = true },
   },
 })
+-- ensure file_browser is available
+pcall(function() telescope.load_extension("file_browser") end)
 EOF
 
 " Catppuccin theme setup
@@ -399,44 +409,6 @@ require("bufferline").setup({
     always_show_bufferline = false,
   },
 })
-EOF
-
-" Treesitter configuration
-lua << EOF
-require'nvim-treesitter.configs'.setup {
-  ensure_installed = {
-    "typescript", "tsx", "javascript", "json",
-    "html", "css", "lua", "vim", "bash"
-  },
-  highlight = {
-    enable = true,
-    additional_vim_regex_highlighting = false,
-  },
-  textobjects = {
-    select = {
-      enable = true,
-      lookahead = true,
-      keymaps = {
-        ["af"] = "@function.outer",
-        ["if"] = "@function.inner",
-        ["ac"] = "@class.outer",
-        ["ic"] = "@class.inner",
-      },
-    },
-    move = {
-      enable = true,
-      set_jumps = true,
-      goto_next_start = {
-        ["]m"] = "@function.outer",
-        ["]]"] = "@class.outer",
-      },
-      goto_previous_start = {
-        ["[m"] = "@function.outer",
-        ["[["] = "@class.outer",
-      },
-    },
-  },
-}
 EOF
 
 " ==========================================================
@@ -517,6 +489,7 @@ function! s:rel_to_git_root()
 endfunction
 nnoremap <leader>fg :echo <SID>rel_to_git_root()<CR>
 
+" keep your existing file browser binding
 nnoremap <leader>f :Telescope file_browser path=%:p:h<CR>
 
 nnoremap <silent> <leader>qo :copen<CR>
@@ -539,6 +512,7 @@ nmap <silent> gr <Plug>(coc-references)
 nnoremap <C-d> <Plug>(coc-definition)
 nnoremap <C-a> <C-o>
 nnoremap <silent> <C-r> <Plug>(coc-references)
+nmap <leader>rn  <Plug>(coc-rename)
 
 map <leader>o :setlocal spell! spelllang=en_us<CR>
 nnoremap <leader>mi :call CocActionAsync('codeAction', '', ['source.addMissingImports.ts'])<CR>
@@ -578,6 +552,70 @@ inoremap <silent><expr> <CR> pumvisible() ? coc#pum#confirm() : "\<CR>"
 nnoremap S :%s//g<Left><Left>
 nnoremap <silent> <leader>r <cmd>Telescope live_grep<cr>
 nnoremap <silent> <leader>R <cmd>Telescope grep_string<cr>
+
+" ===== Added: fast file ops inside Neovim =====
+" sudo write without reopening
+let g:suda_smart_edit = 1
+cnoreabbrev w!! SudaWrite
+
+" create file or dir anywhere (mkdir -p) and open
+function! s:NewFilePrompt() abort
+  let base = expand('%:p:h')
+  let path = input('New file path: ', base.'/','file')
+  if empty(path) | return | endif
+  call mkdir(fnamemodify(path, ':h'), 'p')
+  execute 'edit' fnameescape(path)
+  if empty(glob(path)) | write | endif
+endfunction
+function! s:NewDirPrompt() abort
+  let base = expand('%:p:h')
+  let path = input('New directory: ', base.'/','dir')
+  if empty(path) | return | endif
+  call mkdir(path, 'p')
+  echo 'created ' . path
+endfunction
+nnoremap <leader>nf :call <SID>NewFilePrompt()<CR>
+nnoremap <leader>nd :call <SID>NewDirPrompt()<CR>
+
+" safe delete to trash if available
+function! s:DeleteCurrentFileToTrash() abort
+  let f = expand('%:p')
+  if empty(f) || !filereadable(f) | echo 'no file on disk' | return | endif
+  if confirm('trash ' . f . '?', "&Yes\n&No", 2) != 1 | return | endif
+  if executable('trash-put')
+    call system(['trash-put', f])
+  elseif executable('gio')
+    call system(['gio','trash', f])
+  else
+    call delete(f)
+  endif
+  bdelete!
+endfunction
+nnoremap <leader>dd :call <SID>DeleteCurrentFileToTrash()<CR>
+
+" rename or move current file, update buffer; uses Coc file rename if present
+function! s:RenameCurrentFile() abort
+  try
+    if exists('*CocActionAsync')
+      call CocActionAsync('runCommand','workspace.renameCurrentFile')
+      return
+    endif
+  catch /.*/
+  endtry
+  let old = expand('%:p')
+  let new = input('New path: ', old, 'file')
+  if empty(new) || new == old | return | endif
+  call mkdir(fnamemodify(new, ':h'), 'p')
+  execute 'saveas' fnameescape(new)
+  call delete(old)
+endfunction
+nnoremap <leader>mv :call <SID>RenameCurrentFile()<CR>
+
+" ===== Added: Spectre project replace =====
+nnoremap <leader>sr :lua require('spectre').open()<CR>
+nnoremap <leader>sw :lua require('spectre').open_visual({select_word=true})<CR>
+vnoremap <leader>sw :lua require('spectre').open_visual()<CR>
+nnoremap <leader>sf :lua require('spectre').open_file_search({select_word=true})<CR>
 
 " ==========================================================
 "                  AUTOCOMMANDS & FUNCTIONS
