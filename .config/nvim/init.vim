@@ -1,4 +1,4 @@
-" =========================================================d
+" =========================================================
 "                 LEADER & BOOTSTRAP SETUP
 " ==========================================================
 let mapleader = ","
@@ -19,7 +19,6 @@ imap ,, <esc>:keepp /<++><CR>ca<
 "                   BASIC EDITOR SETTINGS
 " ==========================================================
 set shell=/usr/bin/zsh
-" optional but nice: keep stderr with stdout for :make etc.
 set shellredir=>%s\ 2>&1
 set encoding=UTF-8
 set number
@@ -29,7 +28,10 @@ set shiftwidth=4
 set smarttab
 set title
 set bg=light
-if exists("set go=aguioptions") | set go=a | endif
+" only set guioptions if it exists (avoids E518 on nvim)
+if exists("&guioptions")
+  set guioptions+=a
+endif
 set mouse=a
 set nohlsearch
 set clipboard+=unnamedplus
@@ -42,13 +44,10 @@ nnoremap c "_c
 filetype plugin on
 syntax on
 
-" ================================
 " ==== Python host for Neovim ====
-" fallback, will be overridden by .venv activator below if present
 if executable('/usr/bin/python3')
   let g:python3_host_prog = '/usr/bin/python3'
 endif
-" ================================
 
 " ==========================================================
 "                      PLUGIN SECTION
@@ -87,7 +86,7 @@ Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 Plug 'jiangmiao/auto-pairs'
 Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
-Plug 'nvim-treesitter/nvim-treesitter-textobjects' " for vaf/vif
+Plug 'nvim-treesitter/nvim-treesitter-textobjects'
 Plug 'wbthomason/packer.nvim'
 Plug 'onsails/lspkind-nvim'
 Plug 'neovim/nvim-lspconfig'
@@ -123,9 +122,9 @@ Plug 'plasticboy/vim-markdown'
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
 " ----- Added: file ops + sudo + project replace -----
-Plug 'tpope/vim-eunuch'                 " :Rename :Delete :Move :Mkdir etc.
-Plug 'lambdalisue/suda.vim'             " w!! to write root-owned files
-Plug 'nvim-pack/nvim-spectre'           " ripgrep-powered project replace
+Plug 'tpope/vim-eunuch'          " :Rename :Delete :Move :Mkdir
+Plug 'lambdalisue/suda.vim'      " w!! to write root-owned files
+Plug 'nvim-pack/nvim-spectre'    " ripgrep-powered project replace
 
 call plug#end()
 
@@ -140,14 +139,11 @@ EOF
 " ==========================================================
 "                      PLUGIN CONFIG
 " ==========================================================
-" Buffers
-" === UI: lualine + bufferline only
-" Truecolor and global statusline for lualine
 set termguicolors
 set laststatus=3
 
 lua << EOF
--- Safe Catppuccin palette load with fallback, bubble line
+-- Catppuccin bubble lualine
 local ok, palettes = pcall(require, "catppuccin.palettes")
 local pal
 if ok and palettes and type(palettes.get_palette) == "function" then
@@ -192,80 +188,55 @@ require("lualine").setup({
   sections = {
     lualine_a = { { "mode", separator = { left = "" }, right_padding = 2 } },
     lualine_b = { "branch", "diff", "diagnostics" },
-    lualine_c = {
-      {
-        "filename",
-        path = 0,
-        file_status = false,
-        newfile_status = false,
-        fmt = function(name)
-          local max = 15
-          if #name <= max then return name end
-          local ext = name:match("(%.[^%.]+)$") or ""
-          local keep = max - #ext - 1
-          if keep < 1 then return name:sub(1, max - 1) .. "…" end
-          return name:sub(1, keep) .. "…" .. ext
-        end,
-      },
-    },
+    lualine_c = { { "filename", path = 0, file_status = false, newfile_status = false,
+      fmt = function(name)
+        local max = 15
+        if #name <= max then return name end
+        local ext = name:match("(%.[^%.]+)$") or ""
+        local keep = max - #ext - 1
+        if keep < 1 then return name:sub(1, max - 1) .. "…" end
+        return name:sub(1, keep) .. "…" .. ext
+      end } },
     lualine_x = { "encoding", "fileformat", "filetype" },
     lualine_y = { "progress" },
     lualine_z = { { "location", separator = { right = "" }, left_padding = 2 } },
   },
-  inactive_sections = {
-    lualine_a = { { "filename", separator = { left = "", right = "" } } },
-    lualine_b = {}, lualine_c = {},
-    lualine_x = {}, lualine_y = {}, lualine_z = {},
-  },
+  inactive_sections = { lualine_a = { { "filename", separator = { left = "", right = "" } } } },
   extensions = { "fzf", "quickfix", "fugitive" },
 })
 EOF
 
-set laststatus=2  " show statusline so lualine renders
+set laststatus=2
 
 lua << EOF
 require('lualine').setup({
-  options = {
-    theme = 'auto',
-    icons_enabled = true,
-    component_separators = '',
-    section_separators = ''
-  },
+  options = { theme = 'auto', icons_enabled = true, component_separators = '', section_separators = '' },
   extensions = { 'fzf', 'quickfix', 'fugitive' }
 })
 EOF
 
-" Better buffer UX
 silent! nunmap <leader>bl
 nnoremap <silent> <leader>bl <cmd>Telescope buffers sort_lastused=true ignore_current_buffer=true<cr>
 nnoremap <silent> <leader>bp :BufferLinePick<CR>
 
-" Toggle buffer tabs visibility for a clean top bar
 let g:ash_showtabline = 2
 function! ToggleBufferTabs()
-  if g:ash_showtabline == 2
-    let g:ash_showtabline = 0
-  else
-    let g:ash_showtabline = 2
-  endif
+  if g:ash_showtabline == 2 | let g:ash_showtabline = 0 | else | let g:ash_showtabline = 2 | endif
   execute 'set showtabline=' . g:ash_showtabline
 endfunction
 nnoremap <silent> <leader>bt :call ToggleBufferTabs()<CR>
 
-" NERDTree settings
 let NERDTreeShowHidden=1
 let NERDTreeQuitOnOpen=1
 
-" Devicons settings
 let g:WebDevIconsUnicodeDecorateFolderNodes = 1
 let g:WebDevIconsUnicodeDecorateFolderNodeDefaultSymbol = '#'
 let g:WebDevIconsUnicodeDecorateFileNodesExtensionSymbols = {}
 let g:WebDevIconsUnicodeDecorateFileNodesExtensionSymbols['nerdtree'] = '#'
 
-" Auto-pairs
 let g:AutoPairsMapCR = 0
 
-" CoC global extensions
+" ===== Coc extensions =====
 let g:coc_global_extensions = [
 \ 'coc-tsserver',
 \ '@yaegassy/coc-ruff',
@@ -274,19 +245,20 @@ let g:coc_global_extensions = [
 \ 'coc-go',
 \ 'coc-docker'
 \ ]
-" Added: Jedi LSP just for Python navigation/rename (keeps mypy+ruff for checks)
 let g:coc_global_extensions += ['coc-jedi']
 
-" configure auto imports for TS
+" TS/JS settings including auto update imports on file move
 let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
 \   'typescript.suggest.autoImports': v:true,
 \   'javascript.suggest.autoImports': v:true,
 \   'typescript.preferences.importModuleSpecifier': 'relative',
 \   'javascript.preferences.importModuleSpecifier': 'relative',
+\   'typescript.updateImportsOnFileMove.enabled': 'always',
+\   'javascript.updateImportsOnFileMove.enabled': 'always',
 \   'suggest.noselect': v:false
 \ }, 'force')
 
-" Prisma language server support via CoC
+" Prisma language server
 if executable('prisma-language-server')
   let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
   \   'languageserver': {
@@ -301,16 +273,12 @@ if executable('prisma-language-server')
   \ }, 'force')
 endif
 
-" ================= Python via Ruff + Mypy only ================
-" 1) Make CoC use Node 20 if available under nvm
+" ===== Python via Ruff + mypy only, Jedi for nav/rename =====
 if !exists('g:coc_node_path')
   let s:nodes = glob('~/.nvm/versions/node/v20*/bin/node', 1, 1)
-  if len(s:nodes) > 0
-    let g:coc_node_path = s:nodes[0]
-  endif
+  if len(s:nodes) > 0 | let g:coc_node_path = s:nodes[0] | endif
 endif
 
-" 2) Force CoC Ruff and Mypy to run from project .venv when present
 let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
 \  'python.venvPath': '.',
 \  'python.venv': '.venv',
@@ -328,12 +296,10 @@ let g:coc_user_config = extend(get(g:, 'coc_user_config', {}), {
 \  'jedi.enable': v:true
 \}, 'force')
 
-" 3) Auto-activate .venv for Neovim python host when you open Python files
 function! s:project_root() abort
   let l:gitdir = finddir('.git', expand('%:p:h').';')
   return empty(l:gitdir) ? getcwd() : fnamemodify(l:gitdir, ':h')
 endfunction
-
 function! s:activate_venv() abort
   let l:root = s:project_root()
   for l:name in ['.venv', 'venv']
@@ -347,88 +313,60 @@ function! s:activate_venv() abort
   endfor
 endfunction
 autocmd VimEnter,BufEnter *.py call s:activate_venv()
-" ================= end Python section =========================
 
-" Telescope config
+" ===== Telescope including file-browser actions =====
 lua << EOF
 local telescope = require("telescope")
 local actions = require("telescope.actions")
+local ok_fb, fb_actions = pcall(require, "telescope._extensions.file_browser.actions")
 
 telescope.setup({
   defaults = {
-    vimgrep_arguments = {
-      "rg",
-      "--hidden",
-      "--glob", "!.git/*",
-      "--no-heading",
-      "--with-filename",
-      "--line-number",
-      "--column",
-      "--smart-case",
-    },
+    vimgrep_arguments = { "rg", "--hidden", "--glob", "!.git/*", "--no-heading", "--with-filename", "--line-number", "--column", "--smart-case" },
     sorting_strategy = "ascending",
     layout_config = { prompt_position = "top" },
-    mappings = {
-      i = { ["<C-q>"] = actions.send_selected_to_qflist + actions.open_qflist },
-      n = { ["q"] = actions.close },
+    mappings = { i = { ["<C-q>"] = actions.send_selected_to_qflist + actions.open_qflist }, n = { ["q"] = actions.close } },
+  },
+  pickers = { live_grep = { only_sort_text = true }, grep_string = { only_sort_text = true } },
+  extensions = ok_fb and {
+    file_browser = {
+      hijack_netrw = true,
+      grouped = true,
+      hidden = true,
+      respect_gitignore = false,
+      mappings = {
+        ["n"] = { ["a"] = fb_actions.create, ["r"] = fb_actions.rename, ["d"] = fb_actions.remove, ["m"] = fb_actions.move, ["y"] = fb_actions.copy },
+        ["i"] = { ["<C-n>"] = fb_actions.create, ["<C-r>"] = fb_actions.rename, ["<C-d>"] = fb_actions.remove, ["<C-m"] = fb_actions.move, ["<C-y>"] = fb_actions.copy },
+      },
     },
-  },
-  pickers = {
-    live_grep = { only_sort_text = true },
-    grep_string = { only_sort_text = true },
-  },
+  } or {},
 })
--- ensure file_browser is available
 pcall(function() telescope.load_extension("file_browser") end)
 EOF
 
-" Catppuccin theme setup
+" ===== Theme =====
 lua << EOF
 require("catppuccin").setup({
   flavour = "mocha",
-  integrations = {
-    bufferline = true,
-    treesitter = true,
-    coc_nvim = true,
-    nvimtree = true,
-    native_lsp = { enabled = true }
-  }
+  integrations = { bufferline = true, treesitter = true, coc_nvim = true, nvimtree = true, native_lsp = { enabled = true } }
 })
 vim.cmd.colorscheme "catppuccin"
 EOF
 
-" Bufferline setup
 lua << EOF
 require("bufferline").setup({
-  options = {
-    mode = "buffers",
-    diagnostics = "nvim_lsp",
-    separator_style = "slant",
-    show_close_icon = false,
-    show_buffer_close_icons = false,
-    always_show_bufferline = false,
-  },
+  options = { mode = "buffers", diagnostics = "nvim_lsp", separator_style = "slant", show_close_icon = false, show_buffer_close_icons = false, always_show_bufferline = false },
 })
 EOF
 
 " ==========================================================
 "                  KEYBINDINGS & COMMANDS
 " ==========================================================
-silent! nunmap <C-r>
-silent! vunmap <C-r>
-silent! iunmap <C-r>
-silent! nunmap <C-u>
-silent! vunmap <C-u>
-silent! iunmap <C-u>
-silent! nunmap <C-z>
-silent! vunmap <C-z>
-silent! iunmap <C-z>
-silent! nunmap <C-s>
-silent! vunmap <C-s>
-silent! iunmap <C-s>
-silent! nunmap <C-q>
-silent! vunmap <C-q>
-silent! iunmap <C-q>
+silent! nunmap <C-r> | silent! vunmap <C-r> | silent! iunmap <C-r>
+silent! nunmap <C-u> | silent! vunmap <C-u> | silent! iunmap <C-u>
+silent! nunmap <C-z> | silent! vunmap <C-z> | silent! iunmap <C-z>
+silent! nunmap <C-s> | silent! vunmap <C-s> | silent! iunmap <C-s>
+silent! nunmap <C-q> | silent! vunmap <C-q> | silent! iunmap <C-q>
 
 nnoremap <C-z> u
 inoremap <C-z> <C-o>u
@@ -454,18 +392,10 @@ inoremap <C-q> <C-o>:q!<CR>
 vnoremap <C-q> <Esc>:q!<CR>
 
 function! CycleBufNext()
-  if exists(':BufferLineCycleNext') && &showtabline > 0
-    execute 'BufferLineCycleNext'
-  else
-    bnext
-  endif
+  if exists(':BufferLineCycleNext') && &showtabline > 0 | execute 'BufferLineCycleNext' | else | bnext | endif
 endfunction
 function! CycleBufPrev()
-  if exists(':BufferLineCyclePrev') && &showtabline > 0
-    execute 'BufferLineCyclePrev'
-  else
-    bprevious
-  endif
+  if exists(':BufferLineCyclePrev') && &showtabline > 0 | execute 'BufferLineCyclePrev' | else | bprevious | endif
 endfunction
 nnoremap <silent> <Tab>   :call CycleBufNext()<CR>
 nnoremap <silent> <S-Tab> :call CycleBufPrev()<CR>
@@ -489,7 +419,6 @@ function! s:rel_to_git_root()
 endfunction
 nnoremap <leader>fg :echo <SID>rel_to_git_root()<CR>
 
-" keep your existing file browser binding
 nnoremap <leader>f :Telescope file_browser path=%:p:h<CR>
 
 nnoremap <silent> <leader>qo :copen<CR>
@@ -502,7 +431,7 @@ map <C-j> <C-w>j
 map <C-k> <C-w>k
 map <C-l> <C-w>l
 
-" CoC navigation
+" Coc navigation
 nmap <leader>ac  <Plug>(coc-codeaction)
 nmap <leader>qf  <Plug>(coc-fix-current)
 nmap <silent> gd <Plug>(coc-definition)
@@ -518,7 +447,7 @@ map <leader>o :setlocal spell! spelllang=en_us<CR>
 nnoremap <leader>mi :call CocActionAsync('codeAction', '', ['source.addMissingImports.ts'])<CR>
 nnoremap <leader>oi :call CocActionAsync('runCommand', 'editor.action.organizeImport')<CR>
 
-" --- NERDTree tweaks ---
+" NERDTree tweaks
 let g:NERDTreeWinPos = 'left'
 let g:NERDTreeWinSize = 28
 let g:NERDTreeMinimalUI = 1
@@ -554,11 +483,9 @@ nnoremap <silent> <leader>r <cmd>Telescope live_grep<cr>
 nnoremap <silent> <leader>R <cmd>Telescope grep_string<cr>
 
 " ===== Added: fast file ops inside Neovim =====
-" sudo write without reopening
 let g:suda_smart_edit = 1
 cnoreabbrev w!! SudaWrite
 
-" create file or dir anywhere (mkdir -p) and open
 function! s:NewFilePrompt() abort
   let base = expand('%:p:h')
   let path = input('New file path: ', base.'/','file')
@@ -577,7 +504,6 @@ endfunction
 nnoremap <leader>nf :call <SID>NewFilePrompt()<CR>
 nnoremap <leader>nd :call <SID>NewDirPrompt()<CR>
 
-" safe delete to trash if available
 function! s:DeleteCurrentFileToTrash() abort
   let f = expand('%:p')
   if empty(f) || !filereadable(f) | echo 'no file on disk' | return | endif
@@ -593,7 +519,7 @@ function! s:DeleteCurrentFileToTrash() abort
 endfunction
 nnoremap <leader>dd :call <SID>DeleteCurrentFileToTrash()<CR>
 
-" rename or move current file, update buffer; uses Coc file rename if present
+" LSP file rename that updates TS/JS imports via tsserver
 function! s:RenameCurrentFile() abort
   try
     if exists('*CocActionAsync')
@@ -657,5 +583,5 @@ nnoremap <leader>h :call ToggleHiddenAll()<CR>
 " ==========================================================
 "                  MISC VISUAL SETTINGS
 " ==========================================================
-hi normal guibg=NONE
+hi Normal guibg=NONE
 
