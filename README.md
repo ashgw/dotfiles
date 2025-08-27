@@ -17,13 +17,6 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
     <img   src="https://github.com/user-attachments/assets/fe68393e-5779-43f5-93b5-5d467076ee46"   alt="Image 1" style="width: 100%;">
   </div>
 
-
-
-
- <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="./images/agentseek.png" alt="Image 1" style="width: 100%;">
-  </div>
-
  <div style="flex: 1; min-width: 200px; margin: 5px;">
     <img src="./images/blur0.png" alt="Image 1" style="width: 100%;">
   </div>
@@ -45,9 +38,6 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
     <img src="./images/purp.png" alt="Image 1" style="width: 100%;">
   </div>
 
- <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="./images/cc.png" alt="Image 1" style="width: 100%;">
-  </div>
 
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
@@ -55,6 +45,6 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
   </div>
 
  <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="./images/btop-dark.png" alt="Image 1" style="width: 100%;">
+    <img src="https://github.com/user-attachments/assets/2182694b-20b5-4ad9-b113-2061fd2c5d58" alt="Image 1" style="width: 100%;">
   </div>
 
