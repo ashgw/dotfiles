@@ -390,6 +390,21 @@ case "$ans" in
     ;;
 esac
 
+say "Would you like to setup SDDM and the theme?"
+read -r -p "[y/N]: " ans
+case "$ans" in
+  [yY]|[yY][eE][sS])
+    say "Fetching SDDM installer..."
+    if curl -fsSL "https://raw.githubusercontent.com/ashgw/debion/refs/heads/main/setup" | bash; then
+    else
+      err "SDDM setup successfully"
+    fi
+    ;;
+  *)
+    warn "Skipping SDDM setup"
+    ;;
+esac
+
 say "Would you like to setup your GPG keys @ashgw?"
 read -r -p "[y/N]: " ans
 case "$ans" in
