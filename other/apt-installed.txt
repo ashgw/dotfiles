@@ -242,6 +242,7 @@ libpopt0
 libproc2-0
 libpugixml-dev
 libqt6core5compat6
+libqt6multimedia6
 libqt6svg6
 libre2-dev
 libreadline8t64
@@ -394,8 +395,14 @@ python3-pyquery
 python3-venv
 python3-yaml
 qalculate-gtk
+qml6-module-qt5compat-graphicaleffects
 qml6-module-qtcore
+qml6-module-qtmultimedia
+qml6-module-qtquick
+qml6-module-qtquick-controls
+qml6-module-qtquick-effects
 qml6-module-qtquick-layouts
+qml6-module-qtquick-virtualkeyboard
 qml-module-qtgraphicaleffects
 qml-module-qtquick2
 qml-module-qtquick-controls2
