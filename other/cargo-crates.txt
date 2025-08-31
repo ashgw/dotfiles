@@ -5,5 +5,6 @@ lsd
 starship
 swww
 swww-daemon
+viu
 wasm-pack
 zoxide

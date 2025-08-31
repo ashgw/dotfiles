@@ -2049,6 +2049,7 @@ nano						install
 native-architecture				install
 nautilus					install
 nautilus-data					install
+ncdu						install
 ncurses-base					install
 ncurses-bin					install
 ncurses-term					install

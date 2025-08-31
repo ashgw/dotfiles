@@ -343,6 +343,7 @@ mpv
 mpv-mpris
 nano
 nautilus
+ncdu
 ncurses-base
 ncurses-bin
 ncurses-term
