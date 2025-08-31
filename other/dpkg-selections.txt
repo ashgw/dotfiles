@@ -381,6 +381,7 @@ kded5						install
 kded6						install
 kdoctools6					install
 keditbookmarks					install
+keybase						install
 keyboard-configuration				install
 kf6-breeze-icon-theme				install
 kgamma:amd64					install

@@ -130,6 +130,7 @@ iputils-ping
 iw
 iwd
 jq
+keybase
 keyboard-configuration
 kitty
 kmod
