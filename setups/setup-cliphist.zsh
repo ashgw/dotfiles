@@ -259,8 +259,7 @@ start_watchers_now(){
 print_hypr_lines(){
   print -P "\n%F{6}Hyprland config to add%f"
   echo 'exec-once = $HOME/.local/bin/cliphist-watchers'
-  echo 'bind = SUPER, V, exec, $HOME/.local/bin/clip-wofi'
-  echo 'bind = ALT, V, exec, kitty -e $HOME/.local/bin/clip-menu'
+  echo 'bind = SUPER, X, exec, $HOME/.local/bin/clip-wofi'
 }
 
 setup(){
