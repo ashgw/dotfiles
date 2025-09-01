@@ -138,8 +138,8 @@ urgency_for() {
 
 title_for() {
   local b="$1"
-  if   [[ "$b" -ge 70 ]]; then echo "CPU 🔥🔥 critical - lower heat now"
-  elif [[ "$b" -ge 65 ]]; then echo "CPU 🔥 hot - cool it"
+  if   [[ "$b" -ge 70 ]]; then echo "CPU critical - lower heat now"
+  elif [[ "$b" -ge 65 ]]; then echo "CPU hot - cool it"
   elif [[ "$b" -ge 60 ]]; then echo "CPU warm - rising"
   else echo "CPU ok"
   fi

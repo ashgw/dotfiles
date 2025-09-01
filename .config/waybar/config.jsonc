@@ -9,13 +9,13 @@
 
   "modules-left": ["hyprland/workspaces", "clock"],
   "modules-center": ["window"],
-  "modules-right": ["tray", "cpu", "memory", "temperature", "backlight", "pulseaudio", "bluetooth", "network", "battery"],
+  "modules-right": ["tray", "cpu", "memory", "custom/cpu_temp", "backlight", "pulseaudio", "bluetooth", "network", "battery"],
 
   "hyprland/workspaces": {
     "on-click": "hyprctl dispatch workspace {id}",
     "on-scroll-up": "hyprctl dispatch workspace m+1",
     "on-scroll-down": "hyprctl dispatch workspace m-1",
-    "persistent_workspaces": { "*": [1,2,3,4,5,6,7,8,9,10] },
+    "persistent_workspaces": { "*": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
     "format": "{icon}",
     "format-icons": { "default": "", "active": "", "urgent": "" },
     "icon-size": 14
@@ -40,7 +40,7 @@
   "pulseaudio": {
     "format": "{icon} {volume}%",
     "format-muted": "  0%",
-    "format-icons": { "default": ["","",""] },
+    "format-icons": { "default": ["", "", ""] },
     "scroll-step": 5,
     "on-click": "pamixer -t",
     "on-scroll-up": "pamixer -i 5",
@@ -58,25 +58,23 @@
     "format": "{icon} {capacity}%",
     "format-charging": " {capacity}%",
     "format-plugged": " {capacity}%",
-    "format-icons": ["","","","",""],
+    "format-icons": ["", "", "", "", ""],
     "interval": 10,
     "tooltip": false
   },
 
-  // Wi-Fi without SSID on the bar. Icons reflect strength. Details on hover.
   "network": {
     "interval": 2,
     "format-wifi": "{icon} {signalStrength}%",
     "format-ethernet": "󰈀",
     "format-disconnected": "󰤭  Offline",
-    "format-icons": ["󰤯","󰤟","󰤢","󰤥","󰤨"],
+    "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
     "tooltip-format-wifi": "{essid}\n{ipaddr} via {gwaddr}\n{frequency} MHz",
     "tooltip-format-ethernet": "{ifname}\n{ipaddr} via {gwaddr}",
     "tooltip-format-disconnected": "No network",
     "on-click": "nm-connection-editor || true"
   },
 
-  // Clean Bluetooth glyph. Icon only on bar, details on hover.
   "bluetooth": {
     "format": "{icon}",
     "format-connected": "󰂯",
@@ -100,12 +98,13 @@
     "on-click": "kitty -e btop"
   },
 
-  "temperature": {
+  // replaced temperature module with a custom exec that runs your script
+  "custom/cpu_temp": {
+    "exec": "/home/ashgw/.local/bin/cpu-temp",
     "interval": 2,
-    "hwmon-path": "$HOME/.local/bin/cpu-tmp", # have a look at ashgw/dotfiles/setups
-    "critical-threshold": 80,
-    "format": " {temperatureC}°C",
-    "tooltip": false
+    "format": " {}°C",
+    "tooltip": false,
+    "on-click": "kitty -e btop"
   },
 
   "tray": {
