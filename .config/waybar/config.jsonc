@@ -102,7 +102,7 @@
 
   "temperature": {
     "interval": 2,
-    "hwmon-path": "/sys/class/hwmon/hwmon5/temp1_input",
+    "hwmon-path": "$HOME/.local/bin/cpu-tmp", # have a look at ashgw/dotfiles/setups
     "critical-threshold": 80,
     "format": " {temperatureC}°C",
     "tooltip": false
