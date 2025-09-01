@@ -6,9 +6,9 @@ emulate -L zsh
 setopt err_return pipefail nounset
 
 # ---------- defaults ----------
-: "${HEAT_THRESHOLDS:=60 65 70}"      # notify at 60, 65, 70
-: "${HEAT_COOLDOWN_MIN:=10}"          # minutes between same-bucket pings
-: "${HEAT_MAX_DELTA:=3}"              # max °C step per print tick (smoothing)
+: "${HEAT_THRESHOLDS:=70 80 85}"      # notify at 70, 80, 85
+: "${HEAT_COOLDOWN_MIN:=15}"          # minutes between same-bucket pings
+: "${HEAT_MAX_DELTA:=2}"              # max °C step per print tick (smoothing)
 : "${HEAT_SMOOTH:=1}"                 # 1 = smooth Waybar print, notify uses raw
 
 BIN_NOTIFY="$HOME/.local/bin/heat-notify"
@@ -162,14 +162,14 @@ smooth_for_print() {
 bucket_for() {
   local c="$1" b=0
   # shellcheck disable=SC2206
-  local THS=(${HEAT_THRESHOLDS:-60 65 70})
+  local THS=(${HEAT_THRESHOLDS:-70 80 85})
   for t in "${THS[@]}"; do [[ "$c" -ge "$t" ]] && b="$t"; done
   echo "$b"
 }
 
-urgency_for(){ local b="$1"; if   [[ "$b" -ge 70 ]]; then echo critical; elif [[ "$b" -ge 65 ]]; then echo critical; elif [[ "$b" -ge 60 ]]; then echo normal; else echo low; fi; }
-title_for(){   local b="$1"; if   [[ "$b" -ge 70 ]]; then echo "CPU critical - lower heat now"; elif [[ "$b" -ge 65 ]]; then echo "CPU hot - cool it"; elif [[ "$b" -ge 60 ]]; then echo "CPU warm - rising"; else echo "CPU ok"; fi; }
-icon_for(){    local b="$1"; if   [[ "$b" -ge 60 ]]; then echo dialog-warning; else echo utilities-system-monitor; fi; }
+urgency_for(){ local b="$1"; if   [[ "$b" -ge 80 ]]; then echo critical; elif [[ "$b" -ge 70 ]]; then echo normal; else echo low; fi; }
+title_for(){   local b="$1"; if   [[ "$b" -ge 85 ]]; then echo "CPU emergency - cool now"; elif [[ "$b" -ge 80 ]]; then echo "CPU critical - getting too hot"; elif [[ "$b" -ge 70 ]]; then echo "CPU warm - rising"; else echo "CPU ok"; fi; }
+icon_for(){    local b="$1"; if   [[ "$b" -ge 70 ]]; then echo dialog-warning; else echo utilities-system-monitor; fi; }
 
 should_notify() {
   [[ "${HEAT_FORCE:-0}" = "1" ]] && return 0
@@ -226,7 +226,7 @@ BASH
 cpu_print_wrapper() { cat <<'BASH'
 #!/usr/bin/env bash
 # Waybar wrapper with smoothing
-exec env HEAT_SMOOTH=1 HEAT_MAX_DELTA=3 "$HOME/.local/bin/heat-notify" --print
+exec env HEAT_SMOOTH=1 HEAT_MAX_DELTA=2 "$HOME/.local/bin/heat-notify" --print
 BASH
 }
 
@@ -303,7 +303,7 @@ test_level(){
 }
 
 test_sweep(){
-  for c in $(seq 55 75); do
+  for c in $(seq 55 90); do
     HEAT_THRESHOLDS="$HEAT_THRESHOLDS" HEAT_COOLDOWN_MIN=0 HEAT_STATE_DIR="$STATE_DIR" HEAT_FORCE=1 HEAT_FAKE_C="$c" "$BIN_NOTIFY"
     sleep 0.06
   done
