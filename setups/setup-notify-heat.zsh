@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-# setup-notify-heat.zsh v7 - stable source + smoothing for Waybar
+# setup-notify-heat.zsh v8.1 - stable source + smoothing for Waybar + sustain gate
 # actions: setup | destroy | status | test <C> | test-sweep
 
 emulate -L zsh
@@ -10,6 +10,7 @@ setopt err_return pipefail nounset
 : "${HEAT_COOLDOWN_MIN:=15}"          # minutes between same-bucket pings
 : "${HEAT_MAX_DELTA:=2}"              # max °C step per print tick (smoothing)
 : "${HEAT_SMOOTH:=1}"                 # 1 = smooth Waybar print, notify uses raw
+: "${HEAT_SUSTAIN_SEC:=10}"           # must hold bucket this many seconds before notify
 
 BIN_NOTIFY="$HOME/.local/bin/heat-notify"
 BIN_PRINT="$HOME/.local/bin/cpu-temp"
@@ -45,6 +46,7 @@ make_exec(){ chmod +x "$1" || err "chmod +x $1"; ok "chmod +x $1"; }
 # Notes:
 # - Caches the chosen temp file in $STATE_DIR/source_path so it does not flip sources
 # - Waybar print is smoothed with HEAT_SMOOTH/HEAT_MAX_DELTA, notifier uses raw
+# - Sustain gate requires a bucket to hold for HEAT_SUSTAIN_SEC before notifying
 heat_notify_payload() { cat <<'BASH'
 #!/usr/bin/env bash
 set -o pipefail
@@ -186,6 +188,34 @@ should_notify() {
   echo "$bucket" >"$last_file"; echo "$now" >"$cd_file"; return 0
 }
 
+# sustain gate: require continuous time-in-bucket before notifying
+sustain_ok() {
+  local bucket="$1"
+  [[ "${HEAT_FORCE:-0}" = "1" ]] && return 0
+  local sustain="${HEAT_SUSTAIN_SEC:-0}"
+  [[ "$sustain" -le 0 ]] && return 0
+
+  mkdir -p "$HEAT_STATE_DIR"
+  local now curr enter_file curr_file="${HEAT_STATE_DIR}/current_bucket"
+  enter_file="${HEAT_STATE_DIR}/enter_${bucket}"
+  now=$(date +%s)
+
+  if [[ -r "$curr_file" ]]; then curr="$(<"$curr_file")"; else curr=""; fi
+
+  if [[ "$curr" != "$bucket" ]]; then
+    printf "%s" "$bucket" > "$curr_file"
+    printf "%s" "$now"    > "$enter_file"
+    return 1
+  fi
+
+  local start=0
+  [[ -f "$enter_file" ]] && start="$(<"$enter_file")"
+  [[ -n "$start" ]] || start="$now"
+
+  local elapsed=$(( now - start ))
+  [[ "$elapsed" -ge "$sustain" ]] && return 0 || return 1
+}
+
 main() {
   local print_only=0 debug=0
   for a in "$@"; do [[ "$a" == "--print" ]] && print_only=1; [[ "$a" == "--debug" ]] && debug=1; done
@@ -210,7 +240,19 @@ main() {
 
   mkdir -p "$HEAT_STATE_DIR"
   local b; b="$(bucket_for "$c")"
-  [[ "$b" -eq 0 ]] && exit 0
+
+  # reset current-bucket when below all thresholds
+  if [[ "$b" -eq 0 ]]; then
+    echo "0" > "${HEAT_STATE_DIR}/current_bucket"
+    exit 0
+  fi
+
+  # sustain gate first
+  if ! sustain_ok "$b"; then
+    exit 0
+  fi
+
+  # then normal notify policy
   if should_notify "$b"; then
     notify-send --urgency="$(urgency_for "$b")" --icon="$(icon_for "$b")" --app-name="CPU Heat" "$(title_for "$b")" "${c}°C (≥${b}°)" || true
   fi
@@ -244,6 +286,7 @@ Environment=HEAT_COOLDOWN_MIN="${HEAT_COOLDOWN_MIN}"
 Environment=HEAT_STATE_DIR="${STATE_DIR}"
 Environment=HEAT_MAX_DELTA="${HEAT_MAX_DELTA}"
 Environment=HEAT_SMOOTH=0
+Environment=HEAT_SUSTAIN_SEC="${HEAT_SUSTAIN_SEC}"
 ExecStart=/usr/bin/env bash -lc '%h/.local/bin/heat-notify || :'
 EOF
 }
@@ -272,8 +315,10 @@ setup(){
   write_file "$BIN_PRINT"  "$(cpu_print_wrapper)";  make_exec "$BIN_PRINT"
   write_file "$SVC" "$(service_unit)"
   write_file "$TMR" "$(timer_unit)"
-  : > "$SRC_FILE"  # reset cache on install
-  : > "$LAST_FILE" # clear smoothing state
+  : > "$SRC_FILE"   # reset source cache
+  : > "$LAST_FILE"  # clear smoothing state
+  : > "$STATE_DIR/current_bucket"
+  { setopt local_options null_glob; rm -f "$STATE_DIR"/enter_* 2>/dev/null || true; }
   systemctl --user daemon-reload
   systemctl --user enable --now heat-notify.timer
   ok "enabled heat-notify.timer"
@@ -322,6 +367,7 @@ Env:
   HEAT_THRESHOLDS="${HEAT_THRESHOLDS}"
   HEAT_COOLDOWN_MIN=${HEAT_COOLDOWN_MIN}
   HEAT_MAX_DELTA=${HEAT_MAX_DELTA}
+  HEAT_SUSTAIN_SEC=${HEAT_SUSTAIN_SEC}
   # optional: HEAT_CPU_PATH=/sys/class/hwmon/.../tempX_input (pins a path)
 EOF
 }
