@@ -44,7 +44,3 @@ bash <(curl -L ashgw.me/api/v1/bootstrap)
     <img src="./images/red-is-dead.png" alt="Image 1" style="width: 100%;">
   </div>
 
- <div style="flex: 1; min-width: 200px; margin: 5px;">
-    <img src="https://github.com/user-attachments/assets/2182694b-20b5-4ad9-b113-2061fd2c5d58" alt="Image 1" style="width: 100%;">
-  </div>
-
