@@ -65,7 +65,6 @@ lock_and_run() {
 }
 
 store_input() {
-  # If called without stdin, seed from current clipboards to avoid blocking
   if [ -t 0 ]; then
     { wl-paste --no-newline 2>/dev/null || true; } | cliphist store || true
     { wl-paste --type image 2>/dev/null || true; } | cliphist store || true
@@ -74,23 +73,26 @@ store_input() {
   fi
 }
 
-materialize_cache() {
-  tmp="$(mktemp -p "${CACHE_TSV%/*}" top.XXXXXX.tsv)"
-  cliphist list | head -n "$CAP" > "$tmp" || true
-  mv -f "$tmp" "$CACHE_TSV"
-}
-
-prune_db() {
-  ids="$(cliphist list | tail -n +$((CAP+1)) | cut -f1 || true)"
-  if [ -n "${ids:-}" ]; then
-    printf '%s\n' "$ids" | xargs -r -n1 cliphist delete
-  fi
-}
-
 do_store() {
   store_input
-  prune_db
-  materialize_cache
+
+  tmp_tsv="$(mktemp -p "${CACHE_TSV%/*}" top.XXXXXX.tsv)"
+  tmp_ids="$(mktemp)"
+
+  # Single pass: first CAP to cache, rest to delete
+  n=0
+  while IFS= read -r line; do
+    n=$((n+1))
+    if [ "$n" -le "$CAP" ]; then
+      printf '%s\n' "$line" >> "$tmp_tsv"
+    else
+      printf '%s\n' "$line" | cut -f1 >> "$tmp_ids"
+    fi
+  done < <(cliphist list || true)
+
+  mv -f "$tmp_tsv" "$CACHE_TSV"
+  [ -s "$tmp_ids" ] && xargs -r -n1 cliphist delete < "$tmp_ids" || true
+  rm -f "$tmp_ids"
 }
 
 lock_and_run do_store
@@ -119,9 +121,7 @@ already_running() {
       exit 0
     fi
   fi
-  if pgrep -fa 'wl-paste .* cliphist-store-prune' >/dev/null; then
-    exit 0
-  fi
+  pgrep -fa 'wl-paste .* cliphist-store-prune' >/dev/null && exit 0
 }
 
 spawn() {
@@ -129,7 +129,7 @@ spawn() {
   wl-paste --type text           --watch "$STORE" &
   wl-paste --primary --type text --watch "$STORE" &
   wl-paste --type image          --watch "$STORE" &
-  wait -n
+  wait    # keep parent alive while children run
 }
 
 already_running
@@ -152,28 +152,16 @@ need cliphist; need fzf; need wl-copy; need file
 
 CAP="${CLIP_CAP:-20}"
 CACHE_TSV="${CACHE_DIR:-$HOME/.cache/cliphist}/top.tsv"
-STORE="$HOME/.local/bin/cliphist-store-prune"
 
-seed_cache() {
-  if [ ! -s "$CACHE_TSV" ]; then
-    "$STORE" || true
-  fi
-}
-seed_cache
-
-# keep DB tight
-ids="$(cliphist list | tail -n +$((CAP+1)) | cut -f1 || true)"
-[ -n "${ids:-}" ] && printf '%s\n' "$ids" | xargs -r -n1 cliphist delete || true
+[ -s "$CACHE_TSV" ] || { echo "cache empty; try again" >&2; exit 0; }
 
 sel="$(
-  cat "$CACHE_TSV" 2>/dev/null | head -n "$CAP" \
+  head -n "$CAP" "$CACHE_TSV" \
   | fzf --ansi --no-sort --tac --cycle \
         --prompt='clip> ' \
-        --header='enter copy  ctrl-d delete  ctrl-o open  ctrl-y copy shown text' \
+        --header='enter copy  ctrl-o open  ctrl-y copy shown text' \
         --delimiter='\t' --with-nth=2.. \
         --bind 'enter:accept' \
-        --bind 'ctrl-d:execute-silent(echo {1} | xargs -r -n1 cliphist delete)+'\
-'reload(cat '"$CACHE_TSV"' | head -n '"$CAP"')' \
         --bind 'ctrl-o:execute-silent(echo {1} | xargs -I{} sh -c "cliphist decode {} > /tmp/clip_$PPID; nohup xdg-open /tmp/clip_$PPID >/dev/null 2>&1 &")' \
         --bind 'ctrl-y:execute-silent(sh -c '\''printf "%s" "{2..}" | sed "s/^\[[^]]*\]\s*//" | wl-copy'\'' )+abort'
 ) " || exit 0
@@ -206,19 +194,15 @@ need cliphist; need wofi; need wl-copy; need file
 
 CAP="${CLIP_CAP:-20}"
 CACHE_TSV="${CACHE_DIR:-$HOME/.cache/cliphist}/top.tsv"
-STORE="$HOME/.local/bin/cliphist-store-prune"
 
-seed_cache() {
-  if [ ! -s "$CACHE_TSV" ]; then
-    "$STORE" || true
+if [ ! -s "$CACHE_TSV" ]; then
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send "cliphist" "Cache empty. Try again in a second."
   fi
-}
-seed_cache
+  exit 0
+fi
 
-ids="$(cliphist list | tail -n +$((CAP+1)) | cut -f1 || true)"
-[ -n "${ids:-}" ] && printf '%s\n' "$ids" | xargs -r -n1 cliphist delete || true
-
-sel="$(cat "$CACHE_TSV" 2>/dev/null | head -n "$CAP" | wofi --dmenu -i -p 'clip>' )" || exit 0
+sel="$(head -n "$CAP" "$CACHE_TSV" | wofi --dmenu -i -p 'clip>' )" || exit 0
 id="$(printf '%s\n' "$sel" | cut -f1)"; [ -n "$id" ] || exit 0
 tmp="$(mktemp -t cliphist_dec_XXXXXX)"
 cliphist decode "$id" > "$tmp" || exit 0
@@ -271,10 +255,11 @@ setup(){
   write_fzf_menu
   write_wofi_menu
   stop_dupes
-  "$STORE" || true         # seed once, non blocking
+  # seed cache once, async
+  nohup "$STORE" >/dev/null 2>&1 &
   start_watchers_now
   print_hypr_lines
-  ok "Setup done. Open with Super+V."
+  ok "Setup done. Open with Super+X."
 }
 
 destroy(){
