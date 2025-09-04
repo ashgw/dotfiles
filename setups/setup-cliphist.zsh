@@ -76,23 +76,22 @@ store_input() {
 do_store() {
   store_input
 
-  tmp_tsv="$(mktemp -p "${CACHE_TSV%/*}" top.XXXXXX.tsv)"
+  dir="${CACHE_TSV%/*}"
+  mkdir -p "$dir"
+  all_sorted="$(mktemp -p "$dir" all.XXXXXX.tsv)"
+  tmp_tsv="$(mktemp -p "$dir" top.XXXXXX.tsv)"
   tmp_ids="$(mktemp)"
 
-  # Single pass: first CAP to cache, rest to delete
-  n=0
-  while IFS= read -r line; do
-    n=$((n+1))
-    if [ "$n" -le "$CAP" ]; then
-      printf '%s\n' "$line" >> "$tmp_tsv"
-    else
-      printf '%s\n' "$line" | cut -f1 >> "$tmp_ids"
-    fi
-  done < <(cliphist list || true)
+  # Newest first by numeric ID
+  LC_ALL=C cliphist list | awk 'NF' | LC_ALL=C sort -nr -k1,1 > "$all_sorted" || true
+
+  head -n "$CAP" "$all_sorted" > "$tmp_tsv" || true
+  tail -n +$((CAP+1)) "$all_sorted" | cut -f1 > "$tmp_ids" || true
 
   mv -f "$tmp_tsv" "$CACHE_TSV"
   [ -s "$tmp_ids" ] && xargs -r -n1 cliphist delete < "$tmp_ids" || true
-  rm -f "$tmp_ids"
+
+  rm -f "$tmp_ids" "$all_sorted"
 }
 
 lock_and_run do_store
@@ -129,13 +128,14 @@ spawn() {
   wl-paste --type text           --watch "$STORE" &
   wl-paste --primary --type text --watch "$STORE" &
   wl-paste --type image          --watch "$STORE" &
-  wait    # keep parent alive while children run
+  wait
 }
 
 already_running
 spawn
 SH
   perl -0777 -pe "s|STATE_DIR:-\\$HOME/.local/state/cliphist|STATE_DIR:-$STATE_DIR|g" -i "$WATCH" 2>/dev/null || true
+  perl -0777 -pe "s|\\$HOME/.local/bin/cliphist-store-prune|$STORE|g" -i "$WATCH" 2>/dev/null || true
   make_exec "$WATCH"
   ok "watchers: $WATCH"
 }
@@ -255,7 +255,6 @@ setup(){
   write_fzf_menu
   write_wofi_menu
   stop_dupes
-  # seed cache once, async
   nohup "$STORE" >/dev/null 2>&1 &
   start_watchers_now
   print_hypr_lines
@@ -269,7 +268,6 @@ destroy(){
   ok "removed helpers from $BIN_DIR"
   rm -rf "$STATE_DIR"
   ok "cleared $STATE_DIR"
-  # keep ~/.cache/cliphist because cliphist owns it
 }
 
 usage(){
