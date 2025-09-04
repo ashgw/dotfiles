@@ -51,7 +51,7 @@ CACHE_TSV="${CACHE_DIR:-$HOME/.cache/cliphist}/top.tsv"
 lock_and_run() {
   if command -v flock >/dev/null 2>&1; then
     exec 9>"$LOCKFILE"
-    flock -w 2 9 || exit 0
+    flock -n 9 || exit 0
     "$@"
   else
     LOCKDIR="${LOCKFILE}.d"
@@ -78,20 +78,23 @@ do_store() {
 
   dir="${CACHE_TSV%/*}"
   mkdir -p "$dir"
-  all_sorted="$(mktemp -p "$dir" all.XXXXXX.tsv)"
+  all="$(mktemp -p "$dir" all.XXXXXX.tsv)"
   tmp_tsv="$(mktemp -p "$dir" top.XXXXXX.tsv)"
   tmp_ids="$(mktemp)"
 
-  # Newest first by numeric ID
-  LC_ALL=C cliphist list | awk 'NF' | LC_ALL=C sort -nr -k1,1 > "$all_sorted" || true
+  # cliphist list is oldest-first - we keep the last CAP entries
+  cliphist list > "$all" || true
+  tail -n "$CAP" "$all" > "$tmp_tsv" || true
 
-  head -n "$CAP" "$all_sorted" > "$tmp_tsv" || true
-  tail -n +$((CAP+1)) "$all_sorted" | cut -f1 > "$tmp_ids" || true
+  total="$(wc -l < "$all" | tr -d ' ')"
+  if [ "${total:-0}" -gt "$CAP" ]; then
+    head -n "$(( total - CAP ))" "$all" | cut -f1 > "$tmp_ids" || true
+  fi
 
   mv -f "$tmp_tsv" "$CACHE_TSV"
   [ -s "$tmp_ids" ] && xargs -r -n1 cliphist delete < "$tmp_ids" || true
 
-  rm -f "$tmp_ids" "$all_sorted"
+  rm -f "$tmp_ids" "$all"
 }
 
 lock_and_run do_store
@@ -111,31 +114,47 @@ set -euo pipefail
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 
 WATCH_PIDFILE="${STATE_DIR:-$HOME/.local/state/cliphist}/watchers.pid"
-STORE="$HOME/.local/bin/cliphist-store-prune"
+STORE="${STORE_PATH:-$HOME/.local/bin/cliphist-store-prune}"
 
-already_running() {
-  if [ -f "$WATCH_PIDFILE" ]; then
-    old="$(cat "$WATCH_PIDFILE" 2>/dev/null || true)"
-    if [ -n "$old" ] && ps -p "$old" -o comm= 2>/dev/null | grep -q .; then
-      exit 0
-    fi
-  fi
-  pgrep -fa 'wl-paste .* cliphist-store-prune' >/dev/null && exit 0
+need_env() {
+  [ -n "${WAYLAND_DISPLAY:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ]
 }
 
-spawn() {
-  echo "$$" > "$WATCH_PIDFILE" || true
-  wl-paste --type text           --watch "$STORE" &
-  wl-paste --primary --type text --watch "$STORE" &
-  wl-paste --type image          --watch "$STORE" &
-  wait
+running() {
+  pgrep -fa 'wl-paste .* --watch .*cliphist-store-prune' >/dev/null
 }
 
-already_running
-spawn
+# singleton guard - ignore stale pidfiles
+exec 9>"${WATCH_PIDFILE}.lock"
+if ! flock -n 9; then exit 0; fi
+
+if ! need_env; then
+  # Not in a Wayland session - exit quietly
+  exit 0
+fi
+
+if running; then
+  exit 0
+fi
+
+# clear stale pidfile and start fresh
+rm -f "$WATCH_PIDFILE"
+
+# spawn three watchers and keep parent alive
+wl-paste --type text           --watch "$STORE" &
+t1=$!
+wl-paste --primary --type text --watch "$STORE" &
+t2=$!
+wl-paste --type image          --watch "$STORE" &
+t3=$!
+
+printf '%s %s %s %s\n' "$$" "$t1" "$t2" "$t3" > "$WATCH_PIDFILE" || true
+
+wait
 SH
+  # inject absolute store path
+  perl -0777 -pe "s|STORE_PATH:-\\$HOME/.local/bin/cliphist-store-prune|STORE_PATH:-$STORE|g" -i "$WATCH" 2>/dev/null || true
   perl -0777 -pe "s|STATE_DIR:-\\$HOME/.local/state/cliphist|STATE_DIR:-$STATE_DIR|g" -i "$WATCH" 2>/dev/null || true
-  perl -0777 -pe "s|\\$HOME/.local/bin/cliphist-store-prune|$STORE|g" -i "$WATCH" 2>/dev/null || true
   make_exec "$WATCH"
   ok "watchers: $WATCH"
 }
@@ -156,8 +175,8 @@ CACHE_TSV="${CACHE_DIR:-$HOME/.cache/cliphist}/top.tsv"
 [ -s "$CACHE_TSV" ] || { echo "cache empty; try again" >&2; exit 0; }
 
 sel="$(
-  head -n "$CAP" "$CACHE_TSV" \
-  | fzf --ansi --no-sort --tac --cycle \
+  tac "$CACHE_TSV" | head -n "$CAP" \
+  | fzf --ansi --no-sort --cycle \
         --prompt='clip> ' \
         --header='enter copy  ctrl-o open  ctrl-y copy shown text' \
         --delimiter='\t' --with-nth=2.. \
@@ -202,7 +221,8 @@ if [ ! -s "$CACHE_TSV" ]; then
   exit 0
 fi
 
-sel="$(head -n "$CAP" "$CACHE_TSV" | wofi --dmenu -i -p 'clip>' )" || exit 0
+# newest first
+sel="$(tac "$CACHE_TSV" | head -n "$CAP" | wofi --dmenu -i -p 'clip>' )" || exit 0
 id="$(printf '%s\n' "$sel" | cut -f1)"; [ -n "$id" ] || exit 0
 tmp="$(mktemp -t cliphist_dec_XXXXXX)"
 cliphist decode "$id" > "$tmp" || exit 0
@@ -220,24 +240,29 @@ SH
 }
 
 stop_dupes(){
-  pkill -f 'wl-paste .* --watch cliphist store' 2>/dev/null || true
-  pkill -f 'wl-paste .* cliphist-store-prune' 2>/dev/null || true
-  if [[ -f "$WATCH_PIDFILE" ]]; then
-    old="$(<"$WATCH_PIDFILE")"
-    if [[ -n "$old" ]]; then
-      kill "$old" 2>/dev/null || true
-      rm -f "$WATCH_PIDFILE"
-    fi
-  fi
+  pkill -f 'wl-paste .* --watch .*cliphist-store-prune' 2>/dev/null || true
+  pkill -f 'cliphist-watchers' 2>/dev/null || true
+  rm -f "$WATCH_PIDFILE"
 }
 
 start_watchers_now(){
-  if pgrep -fa 'cliphist-watchers' >/dev/null; then
+  if pgrep -fa 'wl-paste .* --watch .*cliphist-store-prune' >/dev/null; then
     ok "watchers already running"
   else
+    # ensure Wayland env exists in this shell
+    [[ -n "$WAYLAND_DISPLAY" && -n "$XDG_RUNTIME_DIR" ]] || warn "No Wayland env - start from your Hyprland session"
     nohup "$WATCH" >/dev/null 2>&1 &
     ok "watchers started"
   fi
+}
+
+status(){
+  echo "== processes =="
+  pgrep -fa 'wl-paste .* --watch .*cliphist-store-prune' || true
+  echo "== cache head =="
+  head -n 3 "$CACHE_TSV" 2>/dev/null || true
+  echo "== cache tail (newest) =="
+  tail -n 3 "$CACHE_TSV" 2>/dev/null || true
 }
 
 print_hypr_lines(){
@@ -255,6 +280,7 @@ setup(){
   write_fzf_menu
   write_wofi_menu
   stop_dupes
+  # seed cache once, async
   nohup "$STORE" >/dev/null 2>&1 &
   start_watchers_now
   print_hypr_lines
@@ -275,6 +301,7 @@ usage(){
 Usage:
   $0 setup      install helpers, start watchers, print Hypr binds
   $0 destroy    stop watchers and remove helpers
+  $0 status     show watcher processes and cache sample
 Env:
   CLIP_CAP=$CLIP_CAP   BIN_DIR=$BIN_DIR
   CACHE_DIR=$CACHE_DIR STATE_DIR=$STATE_DIR
@@ -284,6 +311,7 @@ EOF
 case "${1:-}" in
   setup) setup ;;
   destroy) destroy ;;
+  status) status ;;
   *) usage; exit 1 ;;
 esac
 
