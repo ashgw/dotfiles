@@ -6,7 +6,7 @@ emulate -L zsh
 setopt err_return pipefail no_unset
 
 # --- tweakables (env overrides allowed) ---
-: "${THRESHOLDS:=50 20 10 5 1}"   # fire when level <= these while discharging
+: "${THRESHOLDS:=50 30 20 10 5}"   # fire when level <= these while discharging
 : "${COOLDOWN_MIN:=20}"
 
 # --- paths ---
@@ -50,7 +50,7 @@ battery_script(){ cat <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-THRESHOLDS=(${THRESHOLDS:-50 20 10 5 1})
+THRESHOLDS=(${THRESHOLDS:-50 30 20 10 5})
 COOLDOWN_MIN=${COOLDOWN_MIN:-20}
 STATE_DIR="${STATE_DIR:-$HOME/.cache/battery-notify}"
 
@@ -90,7 +90,7 @@ bucket_for(){
 }
 
 should_notify(){
-  # Do not write cooldown state when forced test mode is used
+  # do not record cooldown during forced tests
   if [[ "${BAT_FORCE:-0}" = "1" ]]; then
     return 0
   fi
@@ -108,8 +108,8 @@ should_notify(){
 
 urgency_for(){
   local bucket="$1"
-  if   (( bucket <= 10 )); then echo critical
-  elif (( bucket <= 20 )); then echo normal
+  if   (( bucket <= 20 )); then echo critical
+  elif (( bucket <= 30 )); then echo normal
   else                        echo low
   fi
 }
@@ -127,7 +127,11 @@ icon_for(){
 send_note(){
   local urgency="$1" title="$2" body="$3" icon="$4"
   if command -v notify-send >/dev/null 2>&1; then
-    notify-send --app-name="Battery" --urgency="$urgency" --icon="$icon" "$title" "$body"
+    if [[ "$urgency" = "critical" ]]; then
+      notify-send --app-name="Battery" --urgency="$urgency" --expire-time=0 --icon="$icon" "$title" "$body"
+    else
+      notify-send --app-name="Battery" --urgency="$urgency" --icon="$icon" "$title" "$body"
+    fi
   else
     log "notify-send not found. Skipping notification."
   fi
@@ -155,14 +159,14 @@ main(){
   if should_notify "$bucket"; then
     urgency="$(urgency_for "$bucket")"
     icon="$(icon_for "$level")"
-    local label
-    if   (( bucket <= 1 ));  then label="Battery critically low"
-    elif (( bucket <= 5 ));  then label="Battery very low"
-    elif (( bucket <= 10 )); then label="Battery low"
-    elif (( bucket <= 20 )); then label="Battery warning"
-    else                       label="Battery at ${bucket}%"
+    local title
+    if   (( bucket >= 30 )); then title="Battery reminder"
+    elif (( bucket <= 5  )); then title="Battery critically low"
+    elif (( bucket <= 10 )); then title="Battery very low"
+    elif (( bucket <= 20 )); then title="Battery low"
+    else                         title="Battery reminder"
     fi
-    send_note "$urgency" "$label" "$level% remaining" "$icon"
+    send_note "$urgency" "$title" "$level% remaining" "$icon"
   fi
 }
 main "$@"
@@ -275,7 +279,7 @@ Usage:
   $0 test-sweep            iterate 0..100 for visual verification
 
 Env overrides:
-  THRESHOLDS="50 20 10 5 1"
+  THRESHOLDS="50 30 20 10 5"
   COOLDOWN_MIN=20
 EOF
 }
