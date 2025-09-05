@@ -172,7 +172,6 @@ SH
 service_unit(){ cat <<EOF
 [Unit]
 Description=Battery notify check
-# Correct Wayland runtime dir
 ConditionPathExistsGlob=%t/wayland-*
 
 [Service]
@@ -180,7 +179,12 @@ Type=oneshot
 Environment=THRESHOLDS="${THRESHOLDS}"
 Environment=COOLDOWN_MIN="${COOLDOWN_MIN}"
 Environment=STATE_DIR="${STATE_DIR}"
-ExecStart=${BIN}
+Environment=XDG_RUNTIME_DIR=%t
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+ExecStart=/usr/bin/env bash -lc '\
+  export WAYLAND_DISPLAY="\${WAYLAND_DISPLAY:-\$(basename "\$(ls -1 %t/wayland-* 2>/dev/null | head -n1)")}" ; \
+  exec %h/.local/bin/battery-notify \
+'
 EOF
 }
 
