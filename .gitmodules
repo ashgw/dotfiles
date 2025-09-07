@@ -1,3 +1,7 @@
+[submodule "2fa"]
+    path = .2fa
+  	url = https://github.com/ashgw/.2fa.git
+
 [submodule "fonts"]
     path = .local/share/fonts
   	url = https://github.com/ashgw/fonts.git
@@ -37,3 +41,4 @@
 [submodule ".aws"]
     path = .aws
     url = https://github.com/ashgw/.aws.git
+
