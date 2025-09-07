@@ -40,6 +40,7 @@ set noruler
 set laststatus=0
 set noshowcmd
 set nocompatible
+set showtabline=0
 nnoremap c "_c
 filetype plugin on
 syntax on
@@ -100,7 +101,7 @@ Plug 'nvim-telescope/telescope-file-browser.nvim'
 Plug 'windwp/nvim-autopairs'
 Plug 'windwp/nvim-ts-autotag'
 Plug 'norcalli/nvim-colorizer.lua'
-Plug 'akinsho/nvim-bufferline.lua'
+" REMOVED: Plug 'akinsho/nvim-bufferline.lua'
 Plug 'lewis6991/gitsigns.nvim'
 Plug 'dinhhuy258/git.nvim'
 Plug 'folke/zen-mode.nvim'
@@ -217,9 +218,9 @@ EOF
 
 silent! nunmap <leader>bl
 nnoremap <silent> <leader>bl <cmd>Telescope buffers sort_lastused=true ignore_current_buffer=true<cr>
-nnoremap <silent> <leader>bp :BufferLinePick<CR>
+" REMOVED: nnoremap <silent> <leader>bp :BufferLinePick<CR>
 
-let g:ash_showtabline = 2
+let g:ash_showtabline = 0
 function! ToggleBufferTabs()
   if g:ash_showtabline == 2 | let g:ash_showtabline = 0 | else | let g:ash_showtabline = 2 | endif
   execute 'set showtabline=' . g:ash_showtabline
@@ -353,11 +354,12 @@ require("catppuccin").setup({
 vim.cmd.colorscheme "catppuccin"
 EOF
 
-lua << EOF
-require("bufferline").setup({
-  options = { mode = "buffers", diagnostics = "nvim_lsp", separator_style = "slant", show_close_icon = false, show_buffer_close_icons = false, always_show_bufferline = false },
-})
-EOF
+" REMOVED: bufferline setup block
+" lua << EOF
+" require("bufferline").setup({
+"   options = { mode = "buffers", diagnostics = "nvim_lsp", separator_style = "slant", show_close_icon = false, show_buffer_close_icons = false, always_show_bufferline = false },
+" })
+" EOF
 
 " ==========================================================
 "                  KEYBINDINGS & COMMANDS
@@ -399,7 +401,7 @@ function! CycleBufPrev()
 endfunction
 nnoremap <silent> <Tab>   :call CycleBufNext()<CR>
 nnoremap <silent> <S-Tab> :call CycleBufPrev()<CR>
-nnoremap <silent> <leader>bp :BufferLinePick<CR>
+" REMOVED: nnoremap <silent> <leader>bp :BufferLinePick<CR>
 
 nnoremap <leader>bl :ls<CR>:b<Space>
 inoremap <silent> <C-x> <C-o>:bd<CR>
