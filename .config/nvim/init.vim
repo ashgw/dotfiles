@@ -545,6 +545,26 @@ nnoremap <leader>sw :lua require('spectre').open_visual({select_word=true})<CR>
 vnoremap <leader>sw :lua require('spectre').open_visual()<CR>
 nnoremap <leader>sf :lua require('spectre').open_file_search({select_word=true})<CR>
 
+" ===== VSCode-like copy/paste/select-all (system clipboard) =====
+" Copy: Ctrl+C copies selection; no selection copies current line
+xnoremap <C-c> "+y
+nnoremap <C-c> "+yy
+inoremap <C-c> <Esc>"+yy
+
+" Paste: Ctrl+V pastes from system clipboard in all modes
+nnoremap <C-v> "+p
+xnoremap <C-v> "+p
+inoremap <C-v> <C-r>+
+cnoremap <C-v> <C-r>+
+
+" Select all: Ctrl+A selects entire buffer
+nnoremap <C-a> ggVG
+inoremap <C-a> <C-o>gg<C-o>VG
+xnoremap <C-a> ggVG
+
+" Optional: enable shift-select behavior similar to editors
+set keymodel+=startsel
+
 " ==========================================================
 "                  AUTOCOMMANDS & FUNCTIONS
 " ==========================================================
