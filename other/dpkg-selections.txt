@@ -228,6 +228,7 @@ gcr4						install
 gdb						install
 gettext						install
 gettext-base					install
+gh						install
 ghostscript					install
 ghp-import					install
 gir1.2-adw-1:amd64				install

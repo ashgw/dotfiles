@@ -94,6 +94,7 @@ gcc
 gcc-14-base
 gettext
 gettext-base
+gh
 gir1.2-adw-1
 gir1.2-girepository-2.0
 gir1.2-girepository-2.0-dev

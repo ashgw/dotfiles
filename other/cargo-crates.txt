@@ -1,6 +1,7 @@
 broot
 dua-cli
 just
+lookas
 lsd
 starship
 swww
