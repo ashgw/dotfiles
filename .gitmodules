@@ -1,3 +1,7 @@
+[submodule ".exported"]
+    path = .exported
+  	url = https://github.com/ashgw/.exported.git
+
 [submodule "2fa"]
     path = .2fa
   	url = https://github.com/ashgw/.2fa.git
