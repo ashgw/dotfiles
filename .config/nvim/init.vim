@@ -369,6 +369,8 @@ silent! nunmap <C-u> | silent! vunmap <C-u> | silent! iunmap <C-u>
 silent! nunmap <C-z> | silent! vunmap <C-z> | silent! iunmap <C-z>
 silent! nunmap <C-s> | silent! vunmap <C-s> | silent! iunmap <C-s>
 silent! nunmap <C-q> | silent! vunmap <C-q> | silent! iunmap <C-q>
+" Ensure Ctrl+A is not mapped by this config
+silent! nunmap <C-a> | silent! vunmap <C-a> | silent! iunmap <C-a>
 
 nnoremap <C-z> u
 inoremap <C-z> <C-o>u
@@ -419,6 +421,7 @@ function! s:rel_to_git_root()
   let root = systemlist('git rev-parse --show-toplevel')[0]
   return substitute(expand('%:p'), '^'.escape(root, '\'), '', '')[1:]
 endfunction
+
 nnoremap <leader>fg :echo <SID>rel_to_git_root()<CR>
 
 nnoremap <leader>f :Telescope file_browser path=%:p:h<CR>
@@ -437,11 +440,13 @@ map <C-l> <C-w>l
 nmap <leader>ac  <Plug>(coc-codeaction)
 nmap <leader>qf  <Plug>(coc-fix-current)
 nmap <silent> gd <Plug>(coc-definition)
+" Ctrl+A = jump back (reverse of Ctrl+D)
+nnoremap <C-a> <C-o>
 nmap <silent> gy <Plug>(coc-type-definition)
 nmap <silent> gi <Plug>(coc-implementation)
 nmap <silent> gr <Plug>(coc-references)
 nnoremap <C-d> <Plug>(coc-definition)
-nnoremap <C-a> <C-o>
+" REMOVED: nnoremap <C-a> <C-o>
 nnoremap <silent> <C-r> <Plug>(coc-references)
 nmap <leader>rn  <Plug>(coc-rename)
 
@@ -545,7 +550,7 @@ nnoremap <leader>sw :lua require('spectre').open_visual({select_word=true})<CR>
 vnoremap <leader>sw :lua require('spectre').open_visual()<CR>
 nnoremap <leader>sf :lua require('spectre').open_file_search({select_word=true})<CR>
 
-" ===== VSCode-like copy/paste/select-all (system clipboard) =====
+" ===== VSCode-like copy/paste (system clipboard) =====
 " Copy: Ctrl+C copies selection; no selection copies current line
 xnoremap <C-c> "+y
 nnoremap <C-c> "+yy
@@ -556,11 +561,6 @@ nnoremap <C-v> "+p
 xnoremap <C-v> "+p
 inoremap <C-v> <C-r>+
 cnoremap <C-v> <C-r>+
-
-" Select all: Ctrl+A selects entire buffer
-nnoremap <C-a> ggVG
-inoremap <C-a> <C-o>gg<C-o>VG
-xnoremap <C-a> ggVG
 
 " Optional: enable shift-select behavior similar to editors
 set keymodel+=startsel
