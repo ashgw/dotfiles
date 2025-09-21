@@ -1,3 +1,4 @@
+
 #!/usr/bin/env zsh
 # setup-cliphist.zsh  Hyprland + Wayland. No systemd. Idempotent.
 
@@ -9,13 +10,15 @@ setopt err_return no_unset pipefail
 : "${STATE_DIR:=$HOME/.local/state/cliphist}"
 : "${CACHE_DIR:=$HOME/.cache/cliphist}"
 : "${HYPR_CONF:=$HOME/.config/hypr/hyprland.conf}"
+: "${POLL_MS:=500}"           # clipboard poll interval ms
+: "${TIMEOUT_S:=0.2}"         # per wl-paste call timeout seconds
+: "${STALE_SEC:=300}"         # consider cache stale after this many seconds
 
 STORE="$BIN_DIR/cliphist-store-prune"
 WATCH="$BIN_DIR/cliphist-watchers"
 FZF_MENU="$BIN_DIR/clip-menu"
 WOFI_MENU="$BIN_DIR/clip-wofi"
 CACHE_TSV="$CACHE_DIR/top.tsv"
-LOCKFILE="$STATE_DIR/lockfile"
 WATCH_PIDFILE="$STATE_DIR/watchers.pid"
 
 blue(){ print -P "%F{4}[*]%f $*"; }
@@ -34,7 +37,7 @@ assert_env(){
   have file     || err "file(1) missing"
   command -v fzf  >/dev/null || warn "fzf not found. Terminal picker will be skipped"
   command -v wofi >/dev/null || warn "wofi not found. GUI picker will be skipped"
-  [[ -n "$WAYLAND_DISPLAY" && -n "$XDG_RUNTIME_DIR" ]] || warn "Not in a Wayland session. Watchers start next Hyprland login"
+  [[ -n "$WAYLAND_DISPLAY" && -n "$XDG_RUNTIME_DIR" ]] || warn "Not in a Wayland session. Watchers start on next Hyprland login"
 }
 
 write_store(){
@@ -51,6 +54,7 @@ STATE_DIR="${STATE_DIR:-$HOME/.local/state/cliphist}"
 CACHE_DIR="${CACHE_DIR:-$HOME/.cache/cliphist}"
 LOCKFILE="$STATE_DIR/lockfile"
 CACHE_TSV="$CACHE_DIR/top.tsv"
+TIMEOUT_S="${TIMEOUT_S:-0.2}"
 
 has(){ command -v "$1" >/dev/null 2>&1; }
 
@@ -61,7 +65,7 @@ lock_and_run() {
     "$@"
   else
     LOCKDIR="${LOCKFILE}.d"
-    if mkdir "$LOCKDIR" 2>/dev/null; then
+    if mkdir "$LOCKDIR" 2>/null; then
       trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
       "$@"
     else
@@ -71,15 +75,13 @@ lock_and_run() {
 }
 
 store_input() {
-  # Never block on wl-paste. Use a short timeout if available.
   if [ -t 0 ]; then
     if has timeout; then
-      { timeout 0.2 wl-paste --no-newline 2>/dev/null || true; } | cliphist store || true
-      { timeout 0.2 wl-paste --type image 2>/dev/null || true; } | cliphist store || true
+      { timeout "$TIMEOUT_S" wl-paste --no-newline 2>/dev/null || true; } | cliphist store || true
+      { timeout "$TIMEOUT_S" wl-paste --type image 2>/dev/null || true; } | cliphist store || true
     else
-      # Fallback: run in background and kill swiftly
-      { ( wl-paste --no-newline 2>/dev/null || true ) & pid=$!; sleep 0.2; kill -0 "$pid" 2>/dev/null && kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; } | cliphist store || true
-      { ( wl-paste --type image 2>/dev/null || true ) & pid=$!; sleep 0.2; kill -0 "$pid" 2>/dev/null && kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; } | cliphist store || true
+      { ( wl-paste --no-newline 2>/dev/null || true ) & pid=$!; sleep "$TIMEOUT_S"; kill -0 "$pid" 2>/dev/null && kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; } | cliphist store || true
+      { ( wl-paste --type image 2>/dev/null || true ) & pid=$!; sleep "$TIMEOUT_S"; kill -0 "$pid" 2>/dev/null && kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; } | cliphist store || true
     fi
   else
     cat | cliphist store || true
@@ -112,6 +114,7 @@ SH
   perl -0777 -pe "s|STATE_DIR:-\\$HOME/.local/state/cliphist|STATE_DIR:-$STATE_DIR|g" -i "$STORE" 2>/dev/null || true
   perl -0777 -pe "s|CACHE_DIR:-\\$HOME/.cache/cliphist|CACHE_DIR:-$CACHE_DIR|g" -i "$STORE" 2>/dev/null || true
   perl -0777 -pe "s/CLIP_CAP:-20/CLIP_CAP:-$CLIP_CAP/g" -i "$STORE" 2>/dev/null || true
+  perl -0777 -pe "s/TIMEOUT_S:-0.2/TIMEOUT_S:-$TIMEOUT_S/g" -i "$STORE" 2>/dev/null || true
   make_exec "$STORE"
   ok "store+prune+cache -> $STORE"
 }
@@ -126,36 +129,88 @@ export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 STATE_DIR="${STATE_DIR:-$HOME/.local/state/cliphist}"
 STORE="${STORE_PATH:-$HOME/.local/bin/cliphist-store-prune}"
 PIDFILE="$STATE_DIR/watchers.pid"
+POLL_MS="${POLL_MS:-500}"
+TIMEOUT_S="${TIMEOUT_S:-0.2}"
+CACHE_TSV="${CACHE_DIR:-$HOME/.cache/cliphist}/top.tsv"
+STALE_SEC="${STALE_SEC:-300}"
 
 need_env(){ [ -n "${WAYLAND_DISPLAY:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ]; }
-running(){ pgrep -fa 'wl-paste .* --watch .*cliphist-store-prune' >/dev/null; }
+running(){ pgrep -fa 'wl-paste .* --watch .*cliphist-store-prune' >/dev/null || pgrep -fa 'cliphist-poller' >/dev/null; }
 
-mkdir -p "$STATE_DIR"
+mkdir -p "$STATE_DIR" "${CACHE_TSV%/*}"
 
 exec 9>"${PIDFILE}.lock"
-if command -v flock >/dev/null 2>&1; then
-  flock -n 9 || exit 0
-fi
+command -v flock >/dev/null 2>&1 && flock -n 9 || :
 
 need_env || exit 0
 running && exit 0
-
 rm -f "$PIDFILE"
 
-setsid -f sh -c "wl-paste --type text           --watch '$STORE' >/dev/null 2>&1" &
-t1=$! || true
-setsid -f sh -c "wl-paste --primary --type text --watch '$STORE' >/dev/null 2>&1" &
-t2=$! || true
-setsid -f sh -c "wl-paste --type image          --watch '$STORE' >/dev/null 2>&1" &
-t3=$! || true
+# Event watchers
+setsid -f sh -c "wl-paste --type text           --watch '$STORE' >/dev/null 2>&1" & t1=$! || true
+setsid -f sh -c "wl-paste --primary --type text --watch '$STORE' >/dev/null 2>&1" & t2=$! || true
+setsid -f sh -c "wl-paste --type image          --watch '$STORE' >/dev/null 2>&1" & t3=$! || true
 
-printf '%s %s %s %s\n' "$$" "${t1:-0}" "${t2:-0}" "${t3:-0}" > "$PIDFILE" || true
+# Poller to catch OSC52 terminals and stale caches
+setsid -f bash -c '
+  set -euo pipefail
+  STORE="${STORE_PATH:-$HOME/.local/bin/cliphist-store-prune}"
+  CACHE_TSV="${CACHE_DIR:-$HOME/.cache/cliphist}/top.tsv"
+  POLL_MS="${POLL_MS:-500}"
+  TIMEOUT_S="${TIMEOUT_S:-0.2}"
+  STALE_SEC="${STALE_SEC:-300}"
 
-# Keep parent alive quietly, in case someone supervises this process
+  force_store(){
+    if out="$(timeout "$TIMEOUT_S" wl-paste --no-newline 2>/dev/null || true)"; then
+      [ -n "$out" ] && printf %s "$out" | "$STORE" || true
+    fi
+    if timeout "$TIMEOUT_S" wl-paste --type image >/dev/null 2>&1; then
+      timeout "$TIMEOUT_S" wl-paste --type image 2>/dev/null | "$STORE" || true
+    fi
+  }
+
+  last_txt=""; last_img=""
+  force_store
+
+  while :; do
+    if [ -f "$CACHE_TSV" ]; then
+      now=$(date +%s); mtime=$(stat -c %Y "$CACHE_TSV" 2>/dev/null || echo $now)
+      age=$(( now - mtime )); [ "$age" -ge "$STALE_SEC" ] && force_store || :
+    else
+      force_store
+    fi
+
+    txt="$(timeout "$TIMEOUT_S" wl-paste --no-newline 2>/dev/null || true)"
+    if [ -n "$txt" ]; then
+      h="$(printf %s "$txt" | sha1sum | cut -d" " -f1)"
+      if [ "$h" != "$last_txt" ]; then
+        printf %s "$txt" | "$STORE" || true
+        last_txt="$h"
+      fi
+    fi
+
+    if timeout "$TIMEOUT_S" wl-paste --type image >/dev/null 2>&1; then
+      img_h="$(timeout "$TIMEOUT_S" wl-paste --type image 2>/dev/null | sha1sum | cut -d" " -f1 || true)"
+      if [ -n "$img_h" ] && [ "$img_h" != "$last_img" ]; then
+        timeout "$TIMEOUT_S" wl-paste --type image 2>/dev/null | "$STORE" || true
+        last_img="$img_h"
+      fi
+    fi
+
+    usleep=$(printf %d "${POLL_MS}")000
+    perl -e "select(undef,undef,undef,$usleep/1000000)" 2>/dev/null || sleep 0.5
+  done
+' >/dev/null 2>&1 & t4=$! || true
+
+printf '%s %s %s %s %s\n' "$$" "${t1:-0}" "${t2:-0}" "${t3:-0}" "${t4:-0}" > "$PIDFILE" || true
+
 while sleep 3600; do :; done
 SH
   perl -0777 -pe "s|STORE_PATH:-\\$HOME/.local/bin/cliphist-store-prune|STORE_PATH:-$STORE|g" -i "$WATCH" 2>/dev/null || true
   perl -0777 -pe "s|STATE_DIR:-\\$HOME/.local/state/cliphist|STATE_DIR:-$STATE_DIR|g" -i "$WATCH" 2>/dev/null || true
+  perl -0777 -pe "s/POLL_MS:-500/POLL_MS:-$POLL_MS/g" -i "$WATCH" 2>/dev/null || true
+  perl -0777 -pe "s/TIMEOUT_S:-0.2/TIMEOUT_S:-$TIMEOUT_S/g" -i "$WATCH" 2>/dev/null || true
+  perl -0777 -pe "s/STALE_SEC:-300/STALE_SEC:-$STALE_SEC/g" -i "$WATCH" 2>/dev/null || true
   make_exec "$WATCH"
   ok "watchers -> $WATCH"
 }
@@ -166,15 +221,11 @@ write_fzf_menu(){
 #!/usr/bin/env bash
 set -euo pipefail
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
-
 need(){ command -v "$1" >/dev/null 2>&1 || { echo "$1 missing" >&2; exit 1; }; }
 need cliphist; need fzf; need wl-copy; need file
-
 CAP="${CLIP_CAP:-20}"
 CACHE_TSV="${CACHE_DIR:-$HOME/.cache/cliphist}/top.tsv"
-
 [ -s "$CACHE_TSV" ] || { echo "cache empty; try again" >&2; exit 0; }
-
 sel="$(
   tac "$CACHE_TSV" | head -n "$CAP" \
   | fzf --ansi --no-sort --cycle \
@@ -185,7 +236,6 @@ sel="$(
         --bind 'ctrl-o:execute-silent(echo {1} | xargs -I{} sh -c "cliphist decode {} > /tmp/clip_$PPID; nohup xdg-open /tmp/clip_$PPID >/dev/null 2>&1 &")' \
         --bind 'ctrl-y:execute-silent(sh -c '\''printf "%s" "{2..}" | sed "s/^\[[^]]*\]\s*//" | wl-copy'\'' )+abort'
 ) " || exit 0
-
 id="$(printf '%s\n' "$sel" | cut -f1)"; [ -n "$id" ] || exit 0
 tmp="$(mktemp -t cliphist_dec_XXXXXX)"
 cliphist decode "$id" > "$tmp" || exit 0
@@ -208,20 +258,14 @@ write_wofi_menu(){
 #!/usr/bin/env bash
 set -euo pipefail
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
-
 need(){ command -v "$1" >/dev/null 2>&1 || { echo "$1 missing" >&2; exit 1; }; }
 need cliphist; need wofi; need wl-copy; need file
-
 CAP="${CLIP_CAP:-20}"
 CACHE_TSV="${CACHE_DIR:-$HOME/.cache/cliphist}/top.tsv"
-
 if [ ! -s "$CACHE_TSV" ]; then
-  if command -v notify-send >/dev/null 2>&1; then
-    notify-send "cliphist" "Cache empty. Try again in a second."
-  fi
+  command -v notify-send >/dev/null 2>&1 && notify-send "cliphist" "Cache empty. Try again in a second."
   exit 0
 fi
-
 sel="$(tac "$CACHE_TSV" | head -n "$CAP" | wofi --dmenu -i -p 'clip>' )" || exit 0
 id="$(printf '%s\n' "$sel" | cut -f1)"; [ -n "$id" ] || exit 0
 tmp="$(mktemp -t cliphist_dec_XXXXXX)"
@@ -241,12 +285,12 @@ SH
 
 stop_dupes(){
   pkill -f 'wl-paste .* --watch .*cliphist-store-prune' 2>/dev/null || true
+  pkill -f 'cliphist-poller' 2>/dev/null || true
   pkill -f 'cliphist-watchers' 2>/dev/null || true
   rm -f "$WATCH_PIDFILE"
 }
 
 rebuild_cache_fast(){
-  # Rebuild cache and prune old ids without touching wl-paste
   mkdirp "$CACHE_DIR"
   local tmp_all="$CACHE_DIR/.all.$$.$RANDOM.tsv"
   local tmp_keep="$CACHE_DIR/.keep.$$.$RANDOM.tsv"
@@ -279,8 +323,38 @@ ensure_hypr_bind(){
   fi
 }
 
+ensure_tmux_integration(){
+  if ! command -v tmux >/dev/null 2>&1; then
+    warn "tmux not found. Skipping tmux clipboard integration"
+    return 0
+  fi
+  local tmux_main="$HOME/.tmux.conf"
+  local tmux_snip_dir="$HOME/.config/tmux"
+  local tmux_snip="$tmux_snip_dir/cliphist.conf"
+  mkdir -p "$tmux_snip_dir"
+  cat > "$tmux_snip" <<'TMUX'
+# cliphist Wayland bridge
+set -g set-clipboard on
+bind -T copy-mode-vi y send -X copy-pipe-and-cancel "wl-copy --trim-newline"
+bind -T copy-mode-vi Enter send -X copy-pipe-and-cancel "wl-copy --trim-newline"
+bind -T copy-mode MouseDragEnd1Pane send -X copy-pipe-and-cancel "wl-copy --trim-newline"
+bind y capture-pane \; save-buffer - \; delete-buffer \; run-shell "tmux save-buffer - | wl-copy --trim-newline"
+TMUX
+  if [ -f "$tmux_main" ]; then
+    if ! grep -Fq "source-file $tmux_snip" "$tmux_main" 2>/dev/null; then
+      printf '\n# cliphist integration\nsource-file %s\n' "$tmux_snip" >> "$tmux_main"
+      ok "Injected tmux bindings into $tmux_main"
+      [ -n "$TMUX" ] && tmux source-file "$tmux_main" 2>/dev/null || true
+    fi
+  else
+    printf 'source-file %s\n' "$tmux_snip" > "$tmux_main"
+    ok "Created $tmux_main with clipboard bindings"
+    [ -n "$TMUX" ] && tmux source-file "$tmux_main" 2>/dev/null || true
+  fi
+}
+
 start_watchers_now(){
-  if pgrep -fa 'wl-paste .* --watch .*cliphist-store-prune' >/dev/null; then
+  if pgrep -fa 'wl-paste .* --watch .*cliphist-store-prune' >/dev/null || pgrep -fa 'cliphist-poller' >/dev/null; then
     ok "watchers already running"
   else
     [[ -n "$WAYLAND_DISPLAY" && -n "$XDG_RUNTIME_DIR" ]] || { warn "No Wayland env in this shell. Auto start next Hyprland login"; return 0; }
@@ -292,10 +366,11 @@ start_watchers_now(){
 status(){
   print -P "%F{6}== processes ==%f"
   pgrep -fa 'wl-paste .* --watch .*cliphist-store-prune' || true
-  print -P "%F{6}== cache head ==%f"
-  head -n 3 "$CACHE_TSV" 2>/dev/null || true
-  print -P "%F{6}== cache tail (newest) ==%f"
-  tail -n 3 "$CACHE_TSV" 2>/dev/null || true
+  pgrep -fa 'cliphist-poller' || true
+  print -P "%F{6}== cliphist list tail ==%f"
+  cliphist list | tail -n 5 2>/dev/null || true
+  print -P "%F{6}== cache tail ==%f"
+  tail -n 5 "$CACHE_TSV" 2>/dev/null || true
 }
 
 setup(){
@@ -307,8 +382,9 @@ setup(){
   write_fzf_menu
   write_wofi_menu
   stop_dupes
-  rebuild_cache_fast        # no wl-paste calls, cannot hang
+  rebuild_cache_fast
   ensure_hypr_bind
+  ensure_tmux_integration
   start_watchers_now
   ok "Setup done. Use Super+X for picker. Watchers persist."
 }
@@ -324,25 +400,33 @@ destroy(){
   ok "cleared cache listing"
 }
 
+reset(){
+  need_user
+  stop_dupes
+  command -v cliphist >/dev/null 2>&1 && cliphist wipe 2>/dev/null || true
+  : > "$CACHE_TSV" 2>/dev/null || true
+  ok "wiped cliphist DB and cache"
+}
+
 usage(){
   cat <<EOF
 Usage:
-  $0 setup      install helpers, rebuild cache, ensure Hypr binds, start watchers
+  $0 setup      install helpers, rebuild cache, ensure Hypr binds and tmux, start watchers
   $0 destroy    stop watchers and remove helpers, clear state
   $0 status     show watcher processes and cache sample
+  $0 reset      wipe cliphist DB and cache, then run setup
 Env:
-  CLIP_CAP=$CLIP_CAP
-  BIN_DIR=$BIN_DIR
-  CACHE_DIR=$CACHE_DIR
-  STATE_DIR=$STATE_DIR
-  HYPR_CONF=$HYPR_CONF
+  CLIP_CAP=$CLIP_CAP  POLL_MS=$POLL_MS  TIMEOUT_S=$TIMEOUT_S  STALE_SEC=$STALE_SEC
+  BIN_DIR=$BIN_DIR    CACHE_DIR=$CACHE_DIR
+  STATE_DIR=$STATE_DIR HYPR_CONF=$HYPR_CONF
 EOF
 }
 
 case "${1:-}" in
-  setup) setup ;;
+  setup)   setup ;;
   destroy) destroy ;;
-  status) status ;;
+  status)  status ;;
+  reset)   reset; setup ;;
   *) usage; exit 1 ;;
 esac
 
