@@ -1,0 +1,116 @@
+format = """
+[](#1fe2ff)\
+$os\
+[](bg:#1fe2ff fg:#0b1220)\
+[](bg:#7a6dfd fg:#1fe2ff)\
+$directory\
+[](fg:#7a6dfd bg:#1b2235)\
+$git_branch\
+$git_status\
+[](fg:#1b2235 bg:#121a2c)\
+$nodejs\
+$rust\
+$golang\
+$python\
+$php\
+[](fg:#121a2c bg:#0b1220)\
+$time\
+[ ](fg:#0b1220)\
+\n$character"""
+
+# directory pill — violet on dark text to echo mountain glow
+[directory]
+style = "fg:#0b1220 bg:#7a6dfd"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music"     = " "
+"Pictures"  = " "
+"work"      = "🗂️ "
+
+# git block — slate body with violet text accent
+[git_status]
+style = "fg:#0b1220 bg:#121a2c"
+format = '[[($all_status$ahead_behind )](fg:#7a6dfd bg:#1b2235)]($style)'
+conflicted = "‼"
+ahead      = "⇡"
+behind     = "⇣"
+diverged   = "↕️"
+up_to_date = "✓"
+stashed    = " "
+modified   = "●"
+staged     = "[++\\($count\\)](green)"
+renamed    = "➜"
+deleted    = "✖"
+
+[git_branch]
+style  = "bg:#1b2235"
+format = '[[ $symbol $branch ](fg:#7a6dfd bg:#1b2235)]($style)'
+
+[character]
+success_symbol = "[✔](fg:#ff58d0)"
+error_symbol   = "[✖](fg:#ff58d0)"
+
+# language pills — same slate body to keep the bar cohesive
+[nodejs]
+symbol = ""
+style  = "bg:#121a2c"
+format = '[[ $symbol ($version) ](fg:#7a6dfd bg:#121a2c)]($style)'
+
+[rust]
+symbol = ""
+style  = "bg:#121a2c"
+format = '[[ $symbol ($version) ](fg:#7a6dfd bg:#121a2c)]($style)'
+
+[golang]
+symbol = ""
+style  = "bg:#121a2c"
+format = '[[ $symbol ($version) ](fg:#7a6dfd bg:#121a2c)]($style)'
+
+[python]
+symbol = ""
+style  = "bg:#121a2c"
+format = '[[ $symbol ($version) ](fg:#7a6dfd bg:#121a2c)]($style)'
+
+[php]
+symbol = ""
+style  = "bg:#121a2c"
+format = '[[ $symbol ($version) ](fg:#7a6dfd bg:#121a2c)]($style)'
+
+# time pill — deep navy body with magenta to echo city glow
+[time]
+disabled    = false
+time_format = "%R"
+style       = "bg:#0b1220"
+format      = '[[ $time ](fg:#ff58d0 bg:#0b1220)]($style)'
+
+# OS badge — cyan starter pill
+[os]
+disabled = false
+style    = "fg:#0b1220 bg:#1fe2ff"
+
+[os.symbols]
+Windows           = "󰍲"
+Ubuntu            = "󰌽 "
+SUSE              = ""
+Raspbian          = "󰐿"
+Mint              = "󰣭"
+Macos             = ""
+Manjaro           = ""
+Linux             = "󰌽"
+Gentoo            = "󰣨"
+Fedora            = "󰣛"
+Alpine            = ""
+Amazon            = ""
+Android           = ""
+Arch              = "󰣇"
+Artix             = "󰣇"
+CentOS            = ""
+Debian            = "󰣚"
+Redhat            = "󱄛"
+RedHatEnterprise  = "󱄛"
+
